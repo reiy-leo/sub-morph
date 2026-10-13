@@ -1,0 +1,39 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // 与 wrangler.jsonc 同一个 Worker，区别：public/ 内联进脚本（用 API Token 部署时 Static Assets 上传会 401）。
+  // pnpm deploy:inline
+  "name": "sub-morph",
+  "account_id": "9151f72e404dd53f20b8e6667893237d",
+  "main": "worker-inline/entry.ts",
+  "compatibility_date": "2025-09-01",
+  "workers_dev": false,
+  "preview_urls": false,
+  // 自定义域名（zone: rei8t.dev）
+  "routes": [{ "pattern": "sub-morph.rei8t.dev", "custom_domain": true }],
+  "observability": { "enabled": true },
+  // 每天清理过期日志、计数、脚本缓存
+  "triggers": { "crons": ["17 19 * * *"] },
+  // 保留控制台里加的变量/secret
+  "keep_vars": true,
+  "d1_databases": [
+    { "binding": "DB", "database_name": "sub-morph-db", "database_id": "5a49ec7e-af33-4e9a-8679-8f8d6e541d0b", "migrations_dir": "migrations" }
+  ],
+  // 兜底缓存（加密的上次成功输出）
+  "kv_namespaces": [{ "binding": "CACHE", "id": "49dea19878b7444bb31d99404688dbc1" }],
+  "vars": {
+    // 管理员（逗号分隔）
+    "ADMIN_EMAILS": "reiy.leoz@gmail.com",
+    "MAX_SUBS": "20",
+    "DAILY_PULLS": "300",
+    "DAILY_PREVIEWS": "100",
+    "IP_PER_MINUTE": "30",
+    "MAX_SCRIPT_KB": "256",
+    "SCRIPT_TIMEOUT_MS": "3000",
+    "SCRIPT_MEMORY_MB": "48",
+    "SCRIPT_CACHE_SECONDS": "300",
+    "MAX_SUB_MB": "5"
+  }
+  // Secrets（不要提交；wrangler secret put … 或在 CF 控制台添加）：
+  //   SESSION_SECRET、ENCRYPTION_KEY（必填，本项目单独生成）、GOOGLE_CLIENT_ID、GOOGLE_CLIENT_SECRET
+  // Google Cloud 授权回调地址：https://sub-morph.rei8t.dev/auth/callback 与 http://localhost:8787/auth/callback
+}
