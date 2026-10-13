@@ -1,5 +1,6 @@
 // 新建 / 编辑订阅对话框。原订阅地址变化时检查是否命中官方脚本，命中则提示一键使用。
 import { useEffect, useState } from "react";
+import { UA_PRESET_GROUPS } from "../uaPresets";
 import { Banner, Button, Dialog, Input, InputArea, Select, Switch, Tabs, Text, useKumoToastManager } from "@cloudflare/kumo";
 import { SealCheckIcon } from "@phosphor-icons/react";
 import type { Limits, OfficialMatch, SubView } from "../../../src/shared/types.ts";
@@ -124,7 +125,23 @@ export function SubEditor({ open, sub, limits, onClose, onSaved }: { open: boole
             <details className="grid gap-3">
               <summary className="cursor-pointer text-sm text-kumo-subtle">高级设置</summary>
               <div className="mt-3 grid gap-4">
-                <Input label="拉取原订阅时的 User-Agent" placeholder="留空：客户端拉取时用客户端自己的 UA，试运行用 clash.meta" value={d.userAgent} onChange={(e) => set("userAgent", e.target.value)} />
+                <div className="grid gap-2">
+                  <Input label="拉取原订阅时的 User-Agent" placeholder="留空：跟随客户端自己的 UA，试运行用 clash.meta" value={d.userAgent} onChange={(e) => set("userAgent", e.target.value)} />
+                  <div className="grid gap-2">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="w-28 shrink-0"><Text variant="secondary" size="sm">默认</Text></span>
+                      <Button size="sm" variant={d.userAgent ? "secondary" : "primary"} onClick={() => set("userAgent", "")}>跟随客户端</Button>
+                    </div>
+                    {UA_PRESET_GROUPS.map((g) => (
+                      <div key={g.title} className="flex flex-wrap items-center gap-1.5">
+                        <span className="w-28 shrink-0"><Text variant="secondary" size="sm">{g.title}</Text></span>
+                        {g.presets.map((p) => (
+                          <Button key={p.label} size="sm" variant={d.userAgent === p.value ? "primary" : "secondary"} title={p.value} onClick={() => set("userAgent", p.value)}>{p.label}</Button>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </div>
                 <Switch
                   label="失败时返回上次成功的结果"
                   checked={d.fallback}
