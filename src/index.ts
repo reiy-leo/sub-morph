@@ -6,7 +6,7 @@
 // 登录：GET /auth/login | /auth/callback, POST /auth/logout（Google OAuth，任意 Google 账号）
 // API（需登录）：
 //   GET    /api/me
-//   GET    /api/official                   已启用的官方脚本（id / 名称 / 说明），供用户点选
+//   POST   /api/official {url}             命中该订阅地址的全部官方脚本（id / 名称 / 说明），供用户点选
 //   GET    /api/subs                       我的订阅
 //   POST   /api/subs                       新建
 //   GET    /api/subs/:id                   详情
@@ -25,7 +25,7 @@ import { approveSubmission, listSubmissions, rejectSubmission, submissionView } 
 import { googleConfigured, ipPerMinute, limitsOf, type Env } from "./env.ts";
 import { InputError } from "./errors.ts";
 import { renderPage } from "./html.ts";
-import { createOfficial, deleteOfficial, getOfficial, listOfficial, matchOfficial, officialView, updateOfficial } from "./official.ts";
+import { createOfficial, deleteOfficial, getOfficial, listOfficial, matchAllOfficial, matchOfficial, officialView, updateOfficial } from "./official.ts";
 import { runPipeline } from "./pipeline.ts";
 import { bumpDaily, bumpMinute, pruneUsage } from "./quota.ts";
 import { refreshOfficial, ScriptFetchError } from "./scripts.ts";
@@ -70,9 +70,11 @@ async function handleApi(req: Request, env: Env, path: string, url: URL): Promis
       const row = await createSub(env, user.id, await body<SubInput>(req), selfHost);
       return json({ sub: await toSubView(env, row, { origin, owner: true }) }, 201);
     }
-    if (path === "/api/official" && m === "GET") {
-      // 给用户点选的官方脚本列表：只返回已启用的名称和说明
-      return json({ scripts: (await listOfficial(env)).filter((o) => o.enabled).map((o) => ({ id: o.id, name: o.name, description: o.description })) });
+    if (path === "/api/official" && m === "POST") {
+      // 「获取」按钮：返回命中该订阅地址的全部已启用官方脚本（名称和说明）
+      const u = (await body<{ url: string }>(req)).url;
+      if (typeof u !== "string" || !/^https?:\/\/\S+$/i.test(u.trim())) throw new InputError("请先填写原订阅地址");
+      return json({ scripts: await matchAllOfficial(env, u.trim()) });
     }
     if (path === "/api/match" && m === "POST") {
       const u = (await body<{ url: string }>(req)).url;

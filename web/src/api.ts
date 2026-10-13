@@ -57,7 +57,7 @@ export const api = {
   rotate: (id: string) => request<{ sub: SubView }>(`/api/subs/${id}/rotate`, { method: "POST" }),
   preview: (id: string) => request<{ result: PreviewResult; sub: SubView | null }>(`/api/subs/${id}/preview`, { method: "POST" }),
   logs: (id: string) => request<{ logs: FetchLogView[] }>(`/api/subs/${id}/logs`),
-  official: () => request<{ scripts: OfficialMatch[] }>("/api/official"),
+  official: (url: string) => request<{ scripts: OfficialMatch[] }>("/api/official", { method: "POST", body: body({ url }) }),
   match: (url: string) => request<{ match: OfficialMatch | null }>("/api/match", { method: "POST", body: body({ url }) }),
   admin: {
     official: () => request<{ scripts: OfficialScriptView[] }>("/api/admin/official"),

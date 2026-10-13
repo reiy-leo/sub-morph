@@ -26,6 +26,7 @@ export function SubEditor({ open, sub, limits, onClose, onSaved }: { open: boole
   const [match, setMatch] = useState<OfficialMatch | null>(null);
   const [officials, setOfficials] = useState<OfficialMatch[] | null>(null);
   const [officialsError, setOfficialsError] = useState<string | null>(null);
+  const [fetching, setFetching] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,12 +53,26 @@ export function SubEditor({ open, sub, limits, onClose, onSaved }: { open: boole
     return () => clearTimeout(t);
   }, [d.url, open]);
 
-  // 切到「官方脚本」时拉取已启用的官方脚本列表供点选
+  // 打开弹窗或改了原订阅地址：清空上次获取的结果，需要重新点「获取」
   useEffect(() => {
-    if (!open || d.scriptMode !== "official") return;
+    setOfficials(null);
     setOfficialsError(null);
-    api.official().then((r) => setOfficials(r.scripts)).catch((e) => setOfficialsError(e instanceof Error ? e.message : String(e)));
-  }, [open, d.scriptMode]);
+  }, [open, d.url]);
+
+  // 「获取」：拉取命中当前原订阅地址的全部官方脚本
+  async function fetchOfficials() {
+    setFetching(true);
+    setOfficialsError(null);
+    try {
+      const r = await api.official(d.url.trim());
+      setOfficials(r.scripts);
+      if (r.scripts.length === 1) setD((x) => ({ ...x, officialId: r.scripts[0]!.id }));
+    } catch (e) {
+      setOfficialsError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setFetching(false);
+    }
+  }
 
   const set = <K extends keyof SubDraft>(k: K, v: SubDraft[K]) => setD((x) => ({ ...x, [k]: v }));
   const useOfficial = () => match && setD((x) => ({ ...x, scriptMode: "official", officialId: match.id }));
@@ -120,13 +135,21 @@ export function SubEditor({ open, sub, limits, onClose, onSaved }: { open: boole
               <Tabs value={d.scriptMode} onValueChange={(v) => setD((x) => ({ ...x, scriptMode: v as SubDraft["scriptMode"], officialId: v === "official" ? (x.officialId ?? match?.id ?? null) : x.officialId }))} tabs={modeTabs} />
               {d.scriptMode === "official" && (
                 <div className="grid gap-2">
-                  {officialsError ? (
-                    <Banner variant="error" title="官方脚本列表加载失败" description={officialsError} />
-                  ) : !officials ? (
-                    <Text variant="secondary" size="sm">正在加载官方脚本…</Text>
-                  ) : officials.length === 0 ? (
-                    <Text variant="secondary" size="sm">还没有可用的官方脚本。</Text>
-                  ) : (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button size="sm" variant="secondary" loading={fetching} disabled={!/^https?:\/\/\S+/i.test(d.url)} onClick={fetchOfficials}>获取官方脚本</Button>
+                    <Text variant="secondary" size="sm">
+                      {!/^https?:\/\/\S+/i.test(d.url)
+                        ? "先填写原订阅地址"
+                        : d.officialId && (sub?.officialId === d.officialId || officials?.some((o) => o.id === d.officialId))
+                          ? `当前使用「${officials?.find((o) => o.id === d.officialId)?.name ?? sub?.officialName ?? match?.name ?? "官方脚本"}」，管理员更新后自动同步`
+                          : "按原订阅地址查找管理员准备的覆写脚本"}
+                    </Text>
+                  </div>
+                  {officialsError && <Banner variant="error" title="获取失败" description={officialsError} />}
+                  {officials && officials.length === 0 && (
+                    <Banner variant="default" title="没有匹配的官方脚本" description="这个订阅源还没有官方脚本，可以改用「脚本地址」或「脚本内容」，并打开「提交为官方脚本」投稿。" />
+                  )}
+                  {officials && officials.length > 0 && (
                     <div className="grid gap-2 sm:grid-cols-2">
                       {officials.map((o) => {
                         const picked = d.officialId === o.id;
@@ -140,7 +163,7 @@ export function SubEditor({ open, sub, limits, onClose, onSaved }: { open: boole
                           >
                             <span className="flex flex-wrap items-center gap-1.5 font-medium">
                               {o.name}
-                              {match?.id === o.id && <Badge variant="green">匹配当前订阅</Badge>}
+                              {picked && <Badge variant="green">已选</Badge>}
                             </span>
                             {o.description && <span className="text-xs text-kumo-subtle">{o.description}</span>}
                           </button>
@@ -148,11 +171,6 @@ export function SubEditor({ open, sub, limits, onClose, onSaved }: { open: boole
                       })}
                     </div>
                   )}
-                  <Text variant="secondary" size="sm">
-                    {officials?.find((o) => o.id === d.officialId)
-                      ? `使用官方脚本「${officials.find((o) => o.id === d.officialId)!.name}」，管理员更新后自动同步。`
-                      : "点选一个官方脚本。原订阅地址命中某个官方脚本时，上方也会提示一键使用。"}
-                  </Text>
                 </div>
               )}
               {d.scriptMode === "url" && (

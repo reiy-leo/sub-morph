@@ -124,3 +124,8 @@ export async function deleteOfficial(env: Env, id: string): Promise<boolean> {
   const r = await env.DB.prepare("DELETE FROM official_scripts WHERE id=?1").bind(id).run();
   return (r.meta.changes ?? 0) > 0;
 }
+
+/** 命中该订阅地址的全部已启用官方脚本（priority 大的在前），不含正则和脚本内容。 */
+export async function matchAllOfficial(env: Env, url: string): Promise<OfficialMatch[]> {
+  return (await listOfficial(env)).filter((r) => r.enabled && compile(r.pattern)?.test(url)).map((r) => ({ id: r.id, name: r.name, description: r.description }));
+}
