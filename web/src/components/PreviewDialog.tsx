@@ -9,7 +9,7 @@ import { CodeView } from "./CodeLines.tsx";
 export function PreviewDialog({ open, name, result, loading, error, onClose }: { open: boolean; name: string; result: PreviewResult | null; loading: boolean; error: string | null; onClose: () => void }) {
   return (
     <Dialog.Root open={open} onOpenChange={(o) => !o && onClose()}>
-      <Dialog size="lg" className="max-h-[90vh] overflow-y-auto px-6 py-5">
+      <Dialog size="lg" className="max-h-[calc(100dvh-4rem)] overflow-y-auto px-6 py-5 sm:max-h-[calc(100dvh-8rem)] sm:w-[min(64rem,calc(100vw-4rem))]">
         <div className="grid gap-4">
           <div className="grid gap-1">
             <Dialog.Title className="text-base font-semibold">试运行：{name}</Dialog.Title>

@@ -49,7 +49,7 @@ function OfficialEditor({ open, script, onClose, onSaved }: { open: boolean; scr
 
   return (
     <Dialog.Root open={open} onOpenChange={(o) => !o && onClose()}>
-      <Dialog size="lg" className="max-h-[90vh] overflow-y-auto px-6 py-5">
+      <Dialog size="lg" className="max-h-[calc(100dvh-4rem)] overflow-y-auto px-6 py-5 sm:max-h-[calc(100dvh-8rem)] sm:w-[min(64rem,calc(100vw-4rem))]">
         <div className="grid gap-5">
           <Dialog.Title className="text-base font-semibold">{script ? "编辑官方脚本" : "添加官方脚本"}</Dialog.Title>
           <div className="grid gap-4">

@@ -28,8 +28,8 @@ export function CodeView({ text, rows = 10, label }: { text: string; rows?: numb
   );
 }
 
-/** 脚本编辑框：textarea + 同步滚动的行号栏，可上下拖拽调整高度。 */
-export function CodeEditor({ value, onValueChange, placeholder, rows = 12, label }: { value: string; onValueChange: (v: string) => void; placeholder?: string; rows?: number; label: string }) {
+/** 脚本编辑框：textarea + 同步滚动的行号栏，固定 `rows` 行高（默认 20 行），超出滚动。 */
+export function CodeEditor({ value, onValueChange, placeholder, rows = 20, label }: { value: string; onValueChange: (v: string) => void; placeholder?: string; rows?: number; label: string }) {
   const [scrollTop, setScrollTop] = useState(0);
   const ref = useRef<HTMLTextAreaElement>(null);
   const n = useMemo(() => Math.max(countLines(value || placeholder || ""), rows), [value, placeholder, rows]);
@@ -46,7 +46,8 @@ export function CodeEditor({ value, onValueChange, placeholder, rows = 12, label
         spellCheck={false}
         autoCapitalize="off"
         autoComplete="off"
-        className="kumo-input-placeholder min-h-40 flex-1 resize-y overflow-auto bg-transparent px-3 py-3 whitespace-pre outline-none"
+        className="kumo-input-placeholder min-w-0 flex-1 resize-none overflow-auto bg-transparent px-3 py-3 whitespace-pre outline-none"
+        style={{ height: `${rows * LINE + PAD * 2}rem` }}
         value={value}
         placeholder={placeholder}
         onChange={(e) => onValueChange(e.target.value)}
