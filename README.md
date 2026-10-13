@@ -1,4 +1,4 @@
-# Sub Morph · 订阅变形
+# Subscription Braces · 订阅矫正
 
 拉取原订阅 → 套用覆写脚本 → 输出成品订阅。客户端（FlClash、Clash Verge、Mihomo、Quantumult X…）只导入输出地址，靠自带的订阅定时更新就能同步脚本改动，每次拉取的成败都有记录。
 

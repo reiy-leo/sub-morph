@@ -63,6 +63,7 @@ const LICENSES = [
   ["QuickJS", "Fabrice Bellard、Charlie Gordon", "MIT", "https://bellard.org/quickjs/"],
   ["quickjs-emscripten", "Jake Teton-Landis", "MIT", "https://github.com/justjake/quickjs-emscripten"],
   ["yaml", "Eemeli Aro", "ISC", "https://github.com/eemeli/yaml"],
+  ["jsdiff (diff)", "Kevin Decker", "BSD-3-Clause", "https://github.com/kpdecker/jsdiff"],
   ["Kumo", "Cloudflare", "MIT", "https://github.com/cloudflare/kumo"],
   ["Base UI", "MUI", "MIT", "https://github.com/mui/base-ui"],
   ["React / React DOM", "Meta", "MIT", "https://github.com/facebook/react"],
@@ -76,7 +77,7 @@ export function LicensesPage() {
     <Shell>
       <div className="grid gap-1">
         <Text variant="heading" size="lg" as="h1">第三方许可证</Text>
-        <Text variant="secondary" size="sm">Sub Morph 本身以 MIT 许可证开源。以下是打包进服务的第三方库。</Text>
+        <Text variant="secondary" size="sm">Subscription Braces 本身以 MIT 许可证开源。以下是打包进服务的第三方库。</Text>
       </div>
       <LayerCard className="overflow-x-auto p-0">
         <Table>

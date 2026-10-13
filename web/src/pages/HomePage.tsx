@@ -50,7 +50,7 @@ function Landing({ loginError, loginReady }: { loginError: LoginError | null; lo
           <ArrowsLeftRightIcon size={24} weight="bold" />
         </span>
         <div className="grid gap-2">
-          <Text variant="heading" size="lg" as="h1">订阅变形</Text>
+          <Text variant="heading" size="lg" as="h1">订阅矫正</Text>
           <Text variant="secondary">
             拉取你的原订阅，套用覆写脚本，输出成品订阅。FlClash 等客户端用 URL 导入的覆写脚本不会自动同步、成败也没有反馈——把这一步交给服务端，客户端只管更新订阅。
           </Text>

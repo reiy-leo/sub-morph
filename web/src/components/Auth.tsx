@@ -60,7 +60,7 @@ export function AuthProvider({ user: initial, children }: { user: SessionInfo | 
                 <LockKeyIcon size={18} />
               </span>
               <div className="grid gap-1">
-                <Dialog.Title className="text-base font-semibold">{expired ? "登录已过期" : "登录订阅变形"}</Dialog.Title>
+                <Dialog.Title className="text-base font-semibold">{expired ? "登录已过期" : "登录订阅矫正"}</Dialog.Title>
                 <Dialog.Description className="text-kumo-subtle">
                   {expired ? "请重新登录后再继续操作。" : (reason ?? "用任意 Google 账号登录即可添加订阅、生成输出地址。")}
                 </Dialog.Description>

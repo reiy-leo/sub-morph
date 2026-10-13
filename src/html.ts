@@ -4,7 +4,7 @@ import type { Env } from "./env.ts";
 import type { PageData } from "./shared/types.ts";
 
 /** 站点显示名：<title> 只用中文名，不加任何后缀；og 用英文名（见 web/index.html）。 */
-export const SITE_TITLE = "订阅变形";
+export const SITE_TITLE = "订阅矫正";
 
 export const esc = (s: string) =>
   s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);

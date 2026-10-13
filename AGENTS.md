@@ -1,12 +1,12 @@
-# AGENTS.md — Sub Morph（订阅变形）
+# AGENTS.md — Subscription Braces（订阅矫正）
 
 > 给 AI 编程助手的项目说明。`CLAUDE.md` 指向本文件。更多资料在 `.agents/`（rules / prompts / memory / skills）。
 
 ## 目标
 
-FlClash 等客户端用 URL 导入的覆写脚本不会同步、成败无反馈。Sub Morph 在服务端「拉取原订阅 → 套用覆写脚本 → 输出成品订阅」，客户端只导入输出地址，用自带的订阅定时更新自动同步。部署在 **https://sub-morph.rei8t.dev**。
+FlClash 等客户端用 URL 导入的覆写脚本不会同步、成败无反馈。Subscription Braces 在服务端「拉取原订阅 → 套用覆写脚本 → 输出成品订阅」，客户端只导入输出地址，用自带的订阅定时更新自动同步。部署在 **https://sub-morph.rei8t.dev**。
 
-**显示名**：中文「订阅变形」，英文「Sub Morph」，任何地方都不加后缀。`<title>` 只用中文名（`src/html.ts` 的 `SITE_TITLE`）；页头中文名 + 英文名小号副标题；og:title / og:site_name 用英文名。仓库名、Worker 名 `sub-morph` 与域名不变。
+**显示名**：中文「订阅矫正」，英文「Subscription Braces」，任何地方都不加后缀。`<title>` 只用中文名（`src/html.ts` 的 `SITE_TITLE`）；页头中文名 + 英文名小号副标题；og:title / og:site_name 用英文名。仓库名、Worker 名 `sub-morph` 与域名不变（2026-10-14 由「订阅变形 / Sub Morph」改名）。
 
 完整产品说明、脚本约定（含 Quantumult X 结构）、失败行为、配额见 [`docs/PRODUCT.md`](docs/PRODUCT.md)。
 

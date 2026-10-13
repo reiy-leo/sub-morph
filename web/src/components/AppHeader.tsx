@@ -45,9 +45,9 @@ export function AppHeader({ children }: { children?: ReactNode }) {
           <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-kumo-brand text-white">
             <ArrowsLeftRightIcon size={16} weight="bold" />
           </span>
-          <Text variant="heading" as="span">订阅变形</Text>
+          <Text variant="heading" as="span">订阅矫正</Text>
           <span className="hidden sm:inline">
-            <Text variant="secondary" size="sm" as="span">Sub Morph</Text>
+            <Text variant="secondary" size="sm" as="span">Subscription Braces</Text>
           </span>
         </a>
         <div className="flex min-w-0 items-center gap-1">
@@ -96,7 +96,7 @@ export function AppHeader({ children }: { children?: ReactNode }) {
 export function AppFooter() {
   return (
     <footer className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-1 px-5 py-8 text-sm text-kumo-subtle">
-      <span>Sub Morph · 订阅变形</span>
+      <span>Subscription Braces · 订阅矫正</span>
       <a className="hover:text-kumo-default" href="/privacy">隐私说明与免责声明</a>
       <a className="hover:text-kumo-default" href="/licenses">第三方许可证</a>
       <a className="hover:text-kumo-default" href="https://github.com/reiy-leo/sub-morph" target="_blank" rel="noreferrer">GitHub</a>

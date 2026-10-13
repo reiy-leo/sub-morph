@@ -1,4 +1,4 @@
-// sub-morph（Sub Morph / 订阅变形）：拉取原订阅 → 套用覆写脚本 → 输出成品订阅。
+// sub-morph（Subscription Braces / 订阅矫正）：拉取原订阅 → 套用覆写脚本 → 输出成品订阅。
 //
 // 输出（公开，靠不可猜的密钥）：
 //   GET  /s/:token                 成品订阅（客户端导入这个地址）；刷新地址后旧地址返回 410 已失效
@@ -156,7 +156,7 @@ async function serveOutput(req: Request, env: Env, token: string): Promise<Respo
   const ip = req.headers.get("CF-Connecting-IP") ?? "unknown";
   if ((await bumpMinute(env, `ip:${ip}`)) > ipPerMinute(env)) return textResponse(429, "请求太频繁，请稍后再试", { "Retry-After": "60" });
   const { sub, revoked } = await findByToken(env, token);
-  if (!sub) return revoked ? textResponse(410, "这个订阅地址已被刷新或删除，请在 Sub Morph 里复制新的地址") : textResponse(404, "订阅地址不存在");
+  if (!sub) return revoked ? textResponse(410, "这个订阅地址已被刷新或删除，请在 Subscription Braces 里复制新的地址") : textResponse(404, "订阅地址不存在");
   const limit = limitsOf(env).dailyPulls;
   if ((await bumpDaily(env, `pull:${sub.id}`)) > limit) return textResponse(429, `这个订阅今天已被拉取超过 ${limit} 次，明天自动恢复`, { "Retry-After": "3600" });
   const res = await runPipeline(env, sub, { trigger: "client", clientUA: req.headers.get("User-Agent") });

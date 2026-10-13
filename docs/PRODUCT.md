@@ -1,10 +1,10 @@
-# 订阅变形（Sub Morph）产品说明
+# 订阅矫正（Subscription Braces）产品说明
 
 ## 一句话
 
-FlClash 等客户端用 URL 导入的覆写脚本不会自动同步、成败也没有反馈。Sub Morph 在服务端完成「拉取原订阅 → 套用覆写脚本 → 输出成品订阅」，客户端只导入输出地址，用自带的订阅定时更新即可同步脚本的改动。域名 **https://sub-morph.rei8t.dev**。
+FlClash 等客户端用 URL 导入的覆写脚本不会自动同步、成败也没有反馈。Subscription Braces 在服务端完成「拉取原订阅 → 套用覆写脚本 → 输出成品订阅」，客户端只导入输出地址，用自带的订阅定时更新即可同步脚本的改动。域名 **https://sub-morph.rei8t.dev**。
 
-显示名：中文「订阅变形」，英文「Sub Morph」，不加任何后缀。
+显示名：中文「订阅矫正」，英文「Subscription Braces」，不加任何后缀。
 
 ## 用户与权限
 
