@@ -6,6 +6,18 @@ import { fmtBytes, shortHash } from "../format.ts";
 import { ServedBadge } from "./StatusBadge.tsx";
 import { CodeView } from "./CodeLines.tsx";
 import { DiffView } from "./DiffView.tsx";
+import { parseConfig, serializeConfig } from "../../../src/formats/index.ts";
+import type { DetectedFormat } from "../../../src/shared/types.ts";
+
+/** 用输出同一套序列化器重写原订阅，只为对比时抹掉书写习惯差异（如 YAML 列表项换行与否、引号、缩进）。 */
+const normalizerFor = (f: DetectedFormat) => (text: string) => {
+  try {
+    return serializeConfig(parseConfig(text, f), f);
+  } catch {
+    return null;
+  }
+};
+const NORMALIZERS: Record<DetectedFormat, (text: string) => string | null> = { clash: normalizerFor("clash"), qx: normalizerFor("qx") };
 
 export function PreviewDialog({ open, name, result, loading, error, onClose }: { open: boolean; name: string; result: PreviewResult | null; loading: boolean; error: string | null; onClose: () => void }) {
   return (
@@ -44,6 +56,7 @@ export function PreviewDialog({ open, name, result, loading, error, onClose }: {
                   before={result.upstreamText}
                   after={result.outputHead}
                   beforeTitle={`原订阅${result.upstreamBytes && result.upstreamBytes > result.upstreamText.length ? "（前 256K 字符）" : ""}`}
+                  normalize={result.format ? NORMALIZERS[result.format] : undefined}
                   afterTitle={`输出${result.bytes && result.bytes > result.outputHead.length ? "（前 256K 字符）" : ""}`}
                 />
               ) : (

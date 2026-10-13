@@ -67,13 +67,20 @@ function Pane({ rows, side, align, label, title, paneRef, onScroll }: {
   );
 }
 
-export function DiffView({ before, after, beforeTitle, afterTitle }: { before: string; after: string; beforeTitle: string; afterTitle: string }) {
+/**
+ * normalize：把原订阅按输出的书写习惯重新序列化（解析 → 用同一个序列化器输出），
+ * 这样「- \n  name: x」与「- name: x」这类纯书写差异不会显示成变化。解析失败返回 null，按原文比较。
+ */
+export function DiffView({ before, after, beforeTitle, afterTitle, normalize }: { before: string; after: string; beforeTitle: string; afterTitle: string; normalize?: (s: string) => string | null }) {
   const wide = useWide();
   const [onlyChanges, setOnlyChanges] = useState(true);
-  const diff = useMemo(() => diffRows(before, after), [before, after]);
+  const [unify, setUnify] = useState(true);
+  const normalized = useMemo(() => (normalize ? normalize(before) : null), [before, normalize]);
+  const left = unify && normalized != null ? normalized : before;
+  const diff = useMemo(() => diffRows(left, after), [left, after]);
   const rows = useMemo(() => (onlyChanges ? collapse(diff.rows) : diff.rows), [diff, onlyChanges]);
-  const left = useRef<HTMLDivElement>(null);
-  const right = useRef<HTMLDivElement>(null);
+  const leftRef = useRef<HTMLDivElement>(null);
+  const rightRef = useRef<HTMLDivElement>(null);
   const lock = useRef(false);
   // 左右并排时同步上下滚动（横向各自独立）
   const sync = (from: React.RefObject<HTMLDivElement | null>, to: React.RefObject<HTMLDivElement | null>) => () => {
@@ -91,14 +98,18 @@ export function DiffView({ before, after, beforeTitle, afterTitle }: { before: s
     <div className="grid gap-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Text variant="secondary" size="sm">
+          {normalize && normalized == null ? "原订阅未能解析（可能被截断），按原文比较；" : ""}
           {diff.changed ? `${diff.changed} 行有变化（红色为原订阅中被改掉的行，绿色为输出中新增或改后的行）` : "两边内容完全相同"}
         </Text>
-        <Switch label="只看变化的行" checked={onlyChanges} onCheckedChange={setOnlyChanges} />
+        <div className="flex flex-wrap items-center gap-4">
+          {normalize && normalized != null && <Switch label="忽略书写格式差异" checked={unify} onCheckedChange={setUnify} />}
+          <Switch label="只看变化的行" checked={onlyChanges} onCheckedChange={setOnlyChanges} />
+        </div>
       </div>
       {rows.length > 0 && (
         <div className={cn("grid gap-3", wide && "grid-cols-2")}>
-          <Pane rows={rows} side="l" align={wide} label={beforeTitle} title={beforeTitle} paneRef={left} onScroll={sync(left, right)} />
-          <Pane rows={rows} side="r" align={wide} label={afterTitle} title={afterTitle} paneRef={right} onScroll={sync(right, left)} />
+          <Pane rows={rows} side="l" align={wide} label={beforeTitle} title={beforeTitle} paneRef={leftRef} onScroll={sync(leftRef, rightRef)} />
+          <Pane rows={rows} side="r" align={wide} label={afterTitle} title={afterTitle} paneRef={rightRef} onScroll={sync(rightRef, leftRef)} />
         </div>
       )}
     </div>
