@@ -2,13 +2,15 @@
 import { useEffect, useState } from "react";
 import { UA_PRESET_GROUPS } from "../uaPresets";
 import { CodeEditor } from "./CodeLines.tsx";
-import { Banner, Button, Dialog, Input, Select, Switch, Tabs, Text, useKumoToastManager } from "@cloudflare/kumo";
+import { Badge, Banner, Button, Dialog, Input, Select, Switch, Tabs, Text, useKumoToastManager } from "@cloudflare/kumo";
 import { SealCheckIcon } from "@phosphor-icons/react";
 import type { Limits, OfficialMatch, SubView } from "../../../src/shared/types.ts";
 import { api, type SubDraft } from "../api.ts";
 import { FORMAT_LABEL } from "../format.ts";
 
-const EMPTY: SubDraft = { name: "", url: "", format: "auto", userAgent: "", scriptMode: "none", officialId: null, scriptUrl: "", scriptContent: "", fallback: false };
+const EMPTY: SubDraft = { name: "", url: "", format: "auto", userAgent: "", scriptMode: "none", officialId: null, scriptUrl: "", scriptContent: "", fallback: false, submitOfficial: false };
+
+const SUBMISSION_LABEL = { pending: "已提交，等待管理员审核", approved: "已通过，成为官方脚本", rejected: "未通过" } as const;
 
 const SAMPLE = `// main(config, ctx) 返回修改后的 config
 // Clash：config 就是订阅 YAML 解析后的对象；Quantumult X：见「脚本约定」
@@ -30,7 +32,7 @@ export function SubEditor({ open, sub, limits, onClose, onSaved }: { open: boole
     setError(null);
     setD(
       sub
-        ? { name: sub.name, url: sub.url ?? "", format: sub.format, userAgent: sub.userAgent, scriptMode: sub.scriptMode, officialId: sub.officialId, scriptUrl: sub.scriptUrl, scriptContent: sub.scriptContent, fallback: sub.fallback }
+        ? { name: sub.name, url: sub.url ?? "", format: sub.format, userAgent: sub.userAgent, scriptMode: sub.scriptMode, officialId: sub.officialId, scriptUrl: sub.scriptUrl, scriptContent: sub.scriptContent, fallback: sub.fallback, submitOfficial: false }
         : EMPTY,
     );
     setMatch(sub?.officialId && sub.officialName ? { id: sub.officialId, name: sub.officialName, description: "" } : null);
@@ -55,8 +57,9 @@ export function SubEditor({ open, sub, limits, onClose, onSaved }: { open: boole
     setSaving(true);
     setError(null);
     try {
-      const r = sub ? await api.update(sub.id, d) : await api.create(d);
-      toast.add({ title: sub ? "已保存，输出地址不变" : "订阅已创建", variant: "success" });
+      const payload = { ...d, submitOfficial: !!d.submitOfficial && (d.scriptMode === "url" || d.scriptMode === "inline") };
+      const r = sub ? await api.update(sub.id, payload) : await api.create(payload);
+      toast.add({ title: sub ? "已保存，输出地址不变" : "订阅已创建", description: payload.submitOfficial ? "脚本已提交给管理员审核" : undefined, variant: "success" });
       onSaved(r.sub);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -119,6 +122,22 @@ export function SubEditor({ open, sub, limits, onClose, onSaved }: { open: boole
                 <div className="grid gap-1.5">
                   <CodeEditor label="脚本内容" value={d.scriptContent || ""} placeholder={SAMPLE} onValueChange={(v) => set("scriptContent", v)} />
                   <Text variant="secondary" size="sm">{`定义 main(config, ctx) 并 return config；最大 ${limits.maxScriptKB} KB，限时 ${limits.scriptTimeoutMs / 1000} 秒，无网络。`}</Text>
+                </div>
+              )}
+              {(d.scriptMode === "url" || d.scriptMode === "inline") && (
+                <div className="grid gap-1.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Switch label="提交为官方脚本" checked={!!d.submitOfficial} onCheckedChange={(v) => set("submitOfficial", v)} />
+                    {sub?.submission && (
+                      <Badge variant={sub.submission.status === "approved" ? "green" : sub.submission.status === "rejected" ? "red" : "orange"}>
+                        {SUBMISSION_LABEL[sub.submission.status]}
+                      </Badge>
+                    )}
+                  </div>
+                  <Text variant="secondary" size="sm">
+                    {sub?.submission?.status === "rejected" && sub.submission.reviewNote ? `管理员备注：${sub.submission.reviewNote}。` : ""}
+                    打开后保存时，把这个脚本和原订阅的域名（不含路径和 token）交给管理员审核；通过后，同一机场的其他用户添加订阅时会看到「匹配到官方脚本」。已有待审核的投稿时会用新内容覆盖。
+                  </Text>
                 </div>
               )}
             </div>

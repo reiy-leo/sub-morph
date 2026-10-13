@@ -17,8 +17,10 @@
 //   POST   /api/match {url}                原订阅是否命中官方脚本
 // 管理员 API：
 //   GET/POST /api/admin/official, PUT/DELETE /api/admin/official/:id, POST /api/admin/official/:id/refresh
+//   GET /api/admin/submissions?status=, POST /api/admin/submissions/:id/approve|reject   用户投稿的官方脚本候选
 //   GET /api/admin/users, GET /api/admin/subs, GET /api/admin/logs?sub=&user=
 import { callback, getUser, login, logout } from "./auth.ts";
+import { approveSubmission, listSubmissions, rejectSubmission, submissionView } from "./submissions.ts";
 import { googleConfigured, ipPerMinute, limitsOf, type Env } from "./env.ts";
 import { InputError } from "./errors.ts";
 import { renderPage } from "./html.ts";
@@ -113,6 +115,14 @@ async function handleApi(req: Request, env: Env, path: string, url: URL): Promis
         }
         if (m === "PUT") return json({ script: officialView(await updateOfficial(env, id, await body(req), maxScript)) });
         if (m === "DELETE") return (await deleteOfficial(env, id)) ? json({ ok: true }) : json({ error: "官方脚本不存在" }, 404);
+      }
+      if (path === "/api/admin/submissions" && m === "GET") {
+        return json({ submissions: (await listSubmissions(env, url.searchParams.get("status"))).map((x) => submissionView(x, true)) });
+      }
+      if ((r = new RegExp(`^/api/admin/submissions/${ID}/(approve|reject)$`).exec(path)) && m === "POST") {
+        if (r[2] === "approve") return json({ script: officialView(await approveSubmission(env, r[1]!, await body(req), maxScript)) });
+        await rejectSubmission(env, r[1]!, (await body<{ note: string }>(req)).note);
+        return json({ ok: true });
       }
       if (path === "/api/admin/users" && m === "GET") {
         const rows = (

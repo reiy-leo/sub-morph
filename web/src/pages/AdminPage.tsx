@@ -1,9 +1,9 @@
-// 管理后台：官方脚本（正则 + 脚本）、用户、订阅、拉取记录。只有 ADMIN_EMAILS 能进。
+// 管理后台：官方脚本（正则 + 脚本）、投稿审核、用户、订阅、拉取记录。只有 ADMIN_EMAILS 能进。
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CodeEditor } from "../components/CodeLines.tsx";
 import { Badge, Banner, Button, Dialog, Empty, Input, LayerCard, Loader, Switch, Table, Tabs, Text, useKumoToastManager } from "@cloudflare/kumo";
 import { ArrowClockwiseIcon, GoogleLogoIcon, LockKeyIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from "@phosphor-icons/react";
-import type { FetchLogView, OfficialScriptView, UserView } from "../../../src/shared/types.ts";
+import type { FetchLogView, OfficialScriptView, SubmissionView, UserView } from "../../../src/shared/types.ts";
 import { api, type AdminSub, type OfficialDraft } from "../api.ts";
 import { useAuth } from "../components/Auth.tsx";
 import { AppFooter, AppHeader } from "../components/AppHeader.tsx";
@@ -14,7 +14,18 @@ import { FORMAT_LABEL, fmtRelative, fmtTime, MODE_LABEL, shortHash } from "../fo
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const EMPTY: OfficialDraft = { name: "", description: "", pattern: "", sourceType: "url", scriptUrl: "", scriptContent: "", enabled: true, priority: 0 };
 
-function OfficialEditor({ open, script, onClose, onSaved }: { open: boolean; script: OfficialScriptView | null; onClose: () => void; onSaved: (s: OfficialScriptView) => void }) {
+function OfficialEditor({ open, script, initial, title, saveLabel, onSubmit, onClose, onSaved }: {
+  open: boolean;
+  script: OfficialScriptView | null;
+  /** 新建时的预填内容（审核投稿时用）。 */
+  initial?: OfficialDraft;
+  title?: string;
+  saveLabel?: string;
+  /** 自定义保存（审核投稿时走 approve 接口）。 */
+  onSubmit?: (d: OfficialDraft) => Promise<{ script: OfficialScriptView }>;
+  onClose: () => void;
+  onSaved: (s: OfficialScriptView) => void;
+}) {
   const [d, setD] = useState<OfficialDraft>(EMPTY);
   const [testUrl, setTestUrl] = useState("");
   const [saving, setSaving] = useState(false);
@@ -22,8 +33,8 @@ function OfficialEditor({ open, script, onClose, onSaved }: { open: boolean; scr
   useEffect(() => {
     if (!open) return;
     setError(null);
-    setD(script ? { name: script.name, description: script.description, pattern: script.pattern, sourceType: script.sourceType, scriptUrl: script.scriptUrl, scriptContent: script.scriptContent, enabled: script.enabled, priority: script.priority } : EMPTY);
-  }, [open, script]);
+    setD(script ? { name: script.name, description: script.description, pattern: script.pattern, sourceType: script.sourceType, scriptUrl: script.scriptUrl, scriptContent: script.scriptContent, enabled: script.enabled, priority: script.priority } : (initial ?? EMPTY));
+  }, [open, script, initial]);
   const set = <K extends keyof OfficialDraft>(k: K, v: OfficialDraft[K]) => setD((x) => ({ ...x, [k]: v }));
   const test = useMemo(() => {
     if (!d.pattern || !testUrl) return null;
@@ -38,7 +49,7 @@ function OfficialEditor({ open, script, onClose, onSaved }: { open: boolean; scr
     setSaving(true);
     setError(null);
     try {
-      const r = script ? await api.admin.updateOfficial(script.id, d) : await api.admin.createOfficial(d);
+      const r = onSubmit ? await onSubmit(d) : script ? await api.admin.updateOfficial(script.id, d) : await api.admin.createOfficial(d);
       onSaved(r.script);
     } catch (e) {
       setError(errMsg(e));
@@ -51,7 +62,7 @@ function OfficialEditor({ open, script, onClose, onSaved }: { open: boolean; scr
     <Dialog.Root open={open} onOpenChange={(o) => !o && onClose()}>
       <Dialog size="lg" className="max-h-[calc(100dvh-4rem)] overflow-y-auto px-6 py-5 sm:max-h-[calc(100dvh-8rem)] sm:w-[min(64rem,calc(100vw-4rem))]">
         <div className="grid gap-5">
-          <Dialog.Title className="text-base font-semibold">{script ? "编辑官方脚本" : "添加官方脚本"}</Dialog.Title>
+          <Dialog.Title className="text-base font-semibold">{title ?? (script ? "编辑官方脚本" : "添加官方脚本")}</Dialog.Title>
           <div className="grid gap-4">
             <div className="grid gap-4 sm:grid-cols-[1fr_8rem]">
               <Input label="名称" placeholder="如：某某机场去广告分组" value={d.name} onChange={(e) => set("name", e.target.value)} />
@@ -80,7 +91,7 @@ function OfficialEditor({ open, script, onClose, onSaved }: { open: boolean; scr
           {error && <Banner variant="error" title="保存失败" description={error} />}
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={onClose}>取消</Button>
-            <Button variant="primary" loading={saving} onClick={save}>保存</Button>
+            <Button variant="primary" loading={saving} onClick={save}>{saveLabel ?? "保存"}</Button>
           </div>
         </div>
       </Dialog>
@@ -298,6 +309,125 @@ function SubsTab({ user, onClear, onLogs }: { user: UserView | null; onClear: ()
   );
 }
 
+const SUBMISSION_BADGE = { pending: ["orange", "待审核"], approved: ["green", "已通过"], rejected: ["red", "已拒绝"] } as const;
+
+function SubmissionsTab({ onApproved }: { onApproved: () => void }) {
+  const toast = useKumoToastManager();
+  const [list, setList] = useState<SubmissionView[] | null>(null);
+  const [reviewing, setReviewing] = useState<SubmissionView | null>(null);
+  const [rejecting, setRejecting] = useState<SubmissionView | null>(null);
+  const [note, setNote] = useState("");
+  const load = useCallback(() => void api.admin.submissions().then((r) => setList(r.submissions)).catch((e) => toast.add({ title: "加载失败", description: errMsg(e), variant: "error" })), [toast]);
+  useEffect(load, [load]);
+  const initial = useMemo<OfficialDraft | undefined>(
+    () =>
+      reviewing
+        ? { name: reviewing.subName, description: "", pattern: reviewing.suggestedPattern ?? "", sourceType: reviewing.sourceType ?? "inline", scriptUrl: reviewing.scriptUrl ?? "", scriptContent: reviewing.scriptContent ?? "", enabled: true, priority: 0 }
+        : undefined,
+    [reviewing],
+  );
+
+  return (
+    <div className="grid gap-4">
+      <div className="flex items-center justify-between gap-3">
+        <Text variant="secondary" size="sm">用户在添加 / 编辑订阅时提交的覆写脚本。通过时可以改名称、正则和脚本，保存后成为官方脚本。</Text>
+        <Button size="sm" variant="ghost" icon={ArrowClockwiseIcon} onClick={load}>刷新</Button>
+      </div>
+      {!list ? (
+        <div className="flex justify-center py-10"><Loader size={20} /></div>
+      ) : list.length === 0 ? (
+        <LayerCard><LayerCard.Primary><Empty title="还没有投稿" description="用户打开「提交为官方脚本」后保存，会出现在这里。" /></LayerCard.Primary></LayerCard>
+      ) : (
+        <LayerCard className="overflow-x-auto p-0">
+          <Table>
+            <Table.Header>
+              <Table.Row>
+                <Table.Head>订阅 / 用户</Table.Head>
+                <Table.Head>原订阅域名</Table.Head>
+                <Table.Head>脚本</Table.Head>
+                <Table.Head>提交时间</Table.Head>
+                <Table.Head>状态</Table.Head>
+                <Table.Head className="w-36" />
+              </Table.Row>
+            </Table.Header>
+            <Table.Body>
+              {list.map((s) => (
+                <Table.Row key={s.id}>
+                  <Table.Cell className="max-w-48">
+                    <div className="truncate font-medium">{s.subName}</div>
+                    <div className="truncate text-xs text-kumo-subtle">{s.userEmail}</div>
+                  </Table.Cell>
+                  <Table.Cell className="max-w-48"><code className="block truncate text-xs">{s.sourceHost}</code></Table.Cell>
+                  <Table.Cell className="max-w-56">
+                    {s.sourceType === "url" ? <span className="block truncate text-xs" title={s.scriptUrl}>{s.scriptUrl}</span> : <Badge variant="neutral">内联 · {s.scriptContent?.length ?? 0} 字</Badge>}
+                  </Table.Cell>
+                  <Table.Cell className="whitespace-nowrap text-xs" title={fmtTime(s.updatedAt)}>{fmtRelative(s.updatedAt)}</Table.Cell>
+                  <Table.Cell>
+                    <Badge variant={SUBMISSION_BADGE[s.status][0]}>{SUBMISSION_BADGE[s.status][1]}</Badge>
+                    {s.status === "rejected" && s.reviewNote && <div className="max-w-40 truncate text-xs text-kumo-subtle" title={s.reviewNote}>{s.reviewNote}</div>}
+                  </Table.Cell>
+                  <Table.Cell>
+                    {s.status === "pending" && (
+                      <div className="flex justify-end gap-1">
+                        <Button size="sm" variant="primary" onClick={() => setReviewing(s)}>审核</Button>
+                        <Button size="sm" variant="ghost" onClick={() => { setNote(""); setRejecting(s); }}>拒绝</Button>
+                      </div>
+                    )}
+                  </Table.Cell>
+                </Table.Row>
+              ))}
+            </Table.Body>
+          </Table>
+        </LayerCard>
+      )}
+      <OfficialEditor
+        open={!!reviewing}
+        script={null}
+        initial={initial}
+        title={`审核投稿：${reviewing?.subName ?? ""}`}
+        saveLabel="通过并设为官方脚本"
+        onSubmit={(d) => api.admin.approveSubmission(reviewing!.id, d)}
+        onClose={() => setReviewing(null)}
+        onSaved={(o) => {
+          setReviewing(null);
+          toast.add({ title: `已设为官方脚本「${o.name}」`, variant: "success" });
+          load();
+          onApproved();
+        }}
+      />
+      <Dialog.Root open={!!rejecting} onOpenChange={(o) => !o && setRejecting(null)}>
+        <Dialog size="base" className="px-6 py-5">
+          <div className="grid gap-5">
+            <div className="grid gap-1">
+              <Dialog.Title className="text-base font-semibold">拒绝「{rejecting?.subName}」的投稿？</Dialog.Title>
+              <Dialog.Description className="text-kumo-subtle">用户会在编辑订阅时看到「未通过」和你的备注。</Dialog.Description>
+            </div>
+            <Input label="备注（可选）" placeholder="如：脚本会删掉所有节点" value={note} onChange={(e) => setNote(e.target.value)} />
+            <div className="flex justify-end gap-2">
+              <Dialog.Close render={(p) => <Button {...p} variant="secondary">取消</Button>} />
+              <Button
+                variant="destructive"
+                onClick={async () => {
+                  if (!rejecting) return;
+                  try {
+                    await api.admin.rejectSubmission(rejecting.id, note);
+                    setRejecting(null);
+                    load();
+                  } catch (e) {
+                    toast.add({ title: "操作失败", description: errMsg(e), variant: "error" });
+                  }
+                }}
+              >
+                拒绝
+              </Button>
+            </div>
+          </div>
+        </Dialog>
+      </Dialog.Root>
+    </div>
+  );
+}
+
 function LogsTab({ sub, onClear }: { sub: AdminSub | null; onClear: () => void }) {
   const [logs, setLogs] = useState<FetchLogView[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -348,12 +478,14 @@ export function AdminPage() {
               onValueChange={setTab}
               tabs={[
                 { value: "official", label: "官方脚本" },
+                { value: "submissions", label: "投稿" },
                 { value: "users", label: "用户" },
                 { value: "subs", label: "订阅" },
                 { value: "logs", label: "拉取记录" },
               ]}
             />
             {tab === "official" && <OfficialTab />}
+            {tab === "submissions" && <SubmissionsTab onApproved={() => {}} />}
             {tab === "users" && <UsersTab onPick={(u) => { setPickedUser(u); setTab("subs"); }} />}
             {tab === "subs" && <SubsTab user={pickedUser} onClear={() => setPickedUser(null)} onLogs={(s) => { setPickedSub(s); setTab("logs"); }} />}
             {tab === "logs" && <LogsTab sub={pickedSub} onClear={() => setPickedSub(null)} />}

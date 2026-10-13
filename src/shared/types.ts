@@ -45,6 +45,29 @@ export interface SubView {
   createdAt: number;
   updatedAt: number;
   last: LastFetch | null;
+  /** 该订阅最近一次「提交为官方脚本」的投稿（只给本人）。 */
+  submission?: SubmissionView | null;
+}
+
+export type SubmissionStatus = "pending" | "approved" | "rejected";
+
+/** 投稿。管理员看到全部字段；本人只看到状态。 */
+export interface SubmissionView {
+  id: string;
+  subId: string | null;
+  subName: string;
+  status: SubmissionStatus;
+  reviewNote: string;
+  officialId: string | null;
+  createdAt: number;
+  updatedAt: number;
+  reviewedAt: number | null;
+  userEmail?: string;
+  sourceHost?: string;
+  suggestedPattern?: string;
+  sourceType?: "url" | "inline";
+  scriptUrl?: string;
+  scriptContent?: string;
 }
 
 export interface LastFetch {

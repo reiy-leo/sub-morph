@@ -5,6 +5,7 @@ import { decrypt, encrypt, randomId, randomSecret, sha256Hex } from "./crypto.ts
 import { getOfficial } from "./official.ts";
 import type { FetchLogView, ScriptMode, SubFormat, SubView } from "./shared/types.ts";
 import { checkRemoteUrl, maskHost } from "./urls.ts";
+import { submissionView, submitScript, type SubmissionRow } from "./submissions.ts";
 
 export interface SubRow {
   id: string;
@@ -74,6 +75,8 @@ export async function toSubView(env: Env, r: SubRow & { official_name?: string |
     const key = encKey(env);
     view.url = await decrypt(r.source_enc, key);
     view.outputUrl = outputUrl(opts.origin, await decrypt(r.token_enc, key));
+    const sub = await env.DB.prepare("SELECT * FROM script_submissions WHERE sub_id=?1 ORDER BY created_at DESC LIMIT 1").bind(r.id).first<SubmissionRow>();
+    view.submission = sub ? submissionView(sub, false) : null;
   }
   return view;
 }
@@ -97,6 +100,8 @@ export interface SubInput {
   scriptUrl?: unknown;
   scriptContent?: unknown;
   fallback?: unknown;
+  /** 同时把覆写脚本提交为官方脚本候选（只对脚本地址 / 脚本内容有效）。 */
+  submitOfficial?: unknown;
 }
 
 async function validate(env: Env, b: SubInput, selfHost: string) {
@@ -130,6 +135,7 @@ export async function createSub(env: Env, userId: string, b: SubInput, selfHost:
   const max = limitsOf(env).maxSubs;
   if (n >= max) throw new InputError(`每个账号最多 ${max} 个订阅`, 429);
   const v = await validate(env, b, selfHost);
+  if (b.submitOfficial === true && v.scriptMode !== "url" && v.scriptMode !== "inline") throw new InputError("只有「脚本地址」或「脚本内容」可以提交为官方脚本");
   const key = encKey(env);
   const token = randomSecret();
   const id = randomId(6);
@@ -140,12 +146,14 @@ export async function createSub(env: Env, userId: string, b: SubInput, selfHost:
   )
     .bind(id, userId, v.name, await encrypt(v.url, key), v.host, v.format, v.userAgent, v.scriptMode, v.officialId, v.scriptUrl, v.scriptContent, v.fallback, await sha256Hex(token), await encrypt(token, key), now)
     .run();
+  if (b.submitOfficial === true) await submitScript(env, { userId, subId: id, subName: v.name, url: v.url, scriptMode: v.scriptMode, scriptUrl: v.scriptUrl, scriptContent: v.scriptContent });
   return (await getSub(env, id))!;
 }
 
 /** 编辑订阅：输出地址不变。 */
 export async function updateSub(env: Env, sub: SubRow, b: SubInput, selfHost: string): Promise<SubRow> {
   const v = await validate(env, b, selfHost);
+  if (b.submitOfficial === true && v.scriptMode !== "url" && v.scriptMode !== "inline") throw new InputError("只有「脚本地址」或「脚本内容」可以提交为官方脚本");
   const key = encKey(env);
   await env.DB.prepare(
     `UPDATE subscriptions SET name=?2, source_enc=?3, source_host=?4, format=?5, user_agent=?6, script_mode=?7, official_id=?8, script_url=?9, script_content=?10, fallback=?11, updated_at=?12 WHERE id=?1`,
@@ -153,6 +161,7 @@ export async function updateSub(env: Env, sub: SubRow, b: SubInput, selfHost: st
     .bind(sub.id, v.name, await encrypt(v.url, key), v.host, v.format, v.userAgent, v.scriptMode, v.officialId, v.scriptUrl, v.scriptContent, v.fallback, Date.now())
     .run();
   if (!v.fallback) await env.CACHE.delete(`fb:${sub.id}`);
+  if (b.submitOfficial === true) await submitScript(env, { userId: sub.user_id, subId: sub.id, subName: v.name, url: v.url, scriptMode: v.scriptMode, scriptUrl: v.scriptUrl, scriptContent: v.scriptContent });
   return (await getSub(env, sub.id))!;
 }
 

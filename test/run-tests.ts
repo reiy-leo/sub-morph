@@ -11,7 +11,7 @@ import { collapse, diffRows } from "../web/src/lib/diffRows.ts";
 
 // ---- 假 D1 ----
 const sqlite = new DatabaseSync(":memory:");
-sqlite.exec(readFileSync(new URL("../migrations/0001_init.sql", import.meta.url), "utf8"));
+for (const f of ["0001_init.sql", "0002_submissions.sql"]) sqlite.exec(readFileSync(new URL(`../migrations/${f}`, import.meta.url), "utf8"));
 class Stmt {
   args: unknown[] = [];
   sql: string;
@@ -173,6 +173,29 @@ r = await api("/api/subs", "POST", { name: "坏脚本", url: "https://airport.ex
 const bad = (r.data as { sub: { id: string; outputUrl: string } }).sub;
 res = await pull(bad.outputUrl);
 assert.equal(res.status, 422);
+
+// ---- 投稿：提交为官方脚本 ----
+assert.equal((await api("/api/subs", "POST", { url: "https://sub.newair.example.net/x?token=T", scriptMode: "none", submitOfficial: true })).status, 400, "不用脚本时不能投稿");
+r = await api<{ sub: { id: string; submission: { status: string } | null } }>("/api/subs", "POST", { name: "新机场", url: "https://sub.newair.example.net/api?token=T0P", scriptMode: "inline", scriptContent: "function main(c){ return c }", submitOfficial: true });
+assert.equal(r.status, 201);
+const subm = r.data.sub;
+assert.equal(subm.submission?.status, "pending");
+// 再次提交覆盖同一条待审核投稿
+const curS = (await api<{ sub: Record<string, unknown> }>(`/api/subs/${subm.id}`)).data.sub;
+assert.equal((await api(`/api/subs/${subm.id}`, "PUT", { ...curS, scriptContent: "function main(c){ c.x = 1; return c }", submitOfficial: true })).status, 200);
+let subs2 = await api<{ submissions: { id: string; status: string; suggestedPattern: string; scriptContent: string; sourceHost: string }[] }>("/api/admin/submissions?status=pending");
+assert.equal(subs2.data.submissions.length, 1);
+const sm = subs2.data.submissions[0]!;
+assert.equal(sm.sourceHost, "sub.newair.example.net");
+assert.match(sm.scriptContent, /c\.x = 1/);
+assert.ok(!JSON.stringify(sqlite.prepare("SELECT * FROM script_submissions").all()).includes("T0P"), "投稿不含订阅 token");
+const re = new RegExp(sm.suggestedPattern, "i");
+assert.ok(re.test("https://sub.newair.example.net/api?token=x") && re.test("https://a.sub.newair.example.net/") && !re.test("https://sub.newair.example.net.evil.com/"));
+r = await api<{ script: { id: string } }>(`/api/admin/submissions/${sm.id}/approve`, "POST", { name: "新机场", pattern: sm.suggestedPattern, sourceType: "inline", scriptContent: sm.scriptContent });
+assert.equal(r.status, 200);
+assert.equal((await api(`/api/admin/submissions/${sm.id}/reject`, "POST", {})).status, 409, "已处理过");
+assert.equal((await api<{ sub: { submission: { status: string; officialId: string } } }>(`/api/subs/${subm.id}`)).data.sub.submission.status, "approved");
+assert.equal((await api<{ match: { id: string } | null }>("/api/match", "POST", { url: "https://sub.newair.example.net/api?token=other" })).data.match?.id, r.data.script.id);
 assert.match(await res.text(), /超时/);
 
 // ---- QX ----
@@ -197,7 +220,7 @@ assert.equal(ed.data.sub.name, "改名了");
 
 // ---- 管理员视图：脱敏 ----
 const as = await api<{ subs: { url?: string; outputUrl?: string; host: string; userEmail: string }[] }>("/api/admin/subs");
-assert.equal(as.data.subs.length, 3);
+assert.equal(as.data.subs.length, 4);
 assert.ok(as.data.subs.every((s) => !s.url && !s.outputUrl), "管理员看不到原订阅和输出地址");
 const users = await api<{ users: { email: string; admin: boolean }[] }>("/api/admin/users");
 assert.equal(users.data.users[0]!.admin, true);

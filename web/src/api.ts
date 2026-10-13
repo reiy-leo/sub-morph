@@ -1,4 +1,4 @@
-import type { FetchLogView, OfficialMatch, OfficialScriptView, PreviewResult, SubView, UserView } from "../../src/shared/types.ts";
+import type { FetchLogView, OfficialMatch, OfficialScriptView, PreviewResult, SubmissionView, SubView, UserView } from "../../src/shared/types.ts";
 import { statusLabel } from "../../src/shared/status.ts";
 
 export { statusLabel };
@@ -42,6 +42,8 @@ export interface SubDraft {
   scriptUrl: string;
   scriptContent: string;
   fallback: boolean;
+  /** 保存时把覆写脚本提交为官方脚本候选（不保存在订阅上，每次打开默认关闭）。 */
+  submitOfficial?: boolean;
 }
 
 export type OfficialDraft = Pick<OfficialScriptView, "name" | "description" | "pattern" | "sourceType" | "scriptUrl" | "scriptContent" | "enabled" | "priority">;
@@ -62,6 +64,9 @@ export const api = {
     updateOfficial: (id: string, d: OfficialDraft) => request<{ script: OfficialScriptView }>(`/api/admin/official/${id}`, { method: "PUT", body: body(d) }),
     removeOfficial: (id: string) => request<{ ok: true }>(`/api/admin/official/${id}`, { method: "DELETE" }),
     refreshOfficial: (id: string) => request<{ hash: string; changed: boolean; script: OfficialScriptView }>(`/api/admin/official/${id}/refresh`, { method: "POST" }),
+    submissions: (status?: string) => request<{ submissions: SubmissionView[] }>(`/api/admin/submissions${status ? `?status=${status}` : ""}`),
+    approveSubmission: (id: string, d: OfficialDraft) => request<{ script: OfficialScriptView }>(`/api/admin/submissions/${id}/approve`, { method: "POST", body: body(d) }),
+    rejectSubmission: (id: string, note: string) => request<{ ok: true }>(`/api/admin/submissions/${id}/reject`, { method: "POST", body: body({ note }) }),
     users: () => request<{ users: UserView[] }>("/api/admin/users"),
     subs: (user?: string) => request<{ subs: AdminSub[] }>(`/api/admin/subs${user ? `?user=${encodeURIComponent(user)}` : ""}`),
     logs: (p: { sub?: string; user?: string } = {}) => request<{ logs: FetchLogView[] }>(`/api/admin/logs?${new URLSearchParams(p as Record<string, string>)}`),
