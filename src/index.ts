@@ -6,6 +6,7 @@
 // 登录：GET /auth/login | /auth/callback, POST /auth/logout（Google OAuth，任意 Google 账号）
 // API（需登录）：
 //   GET    /api/me
+//   GET    /api/official                   已启用的官方脚本（id / 名称 / 说明），供用户点选
 //   GET    /api/subs                       我的订阅
 //   POST   /api/subs                       新建
 //   GET    /api/subs/:id                   详情
@@ -68,6 +69,10 @@ async function handleApi(req: Request, env: Env, path: string, url: URL): Promis
     if (path === "/api/subs" && m === "POST") {
       const row = await createSub(env, user.id, await body<SubInput>(req), selfHost);
       return json({ sub: await toSubView(env, row, { origin, owner: true }) }, 201);
+    }
+    if (path === "/api/official" && m === "GET") {
+      // 给用户点选的官方脚本列表：只返回已启用的名称和说明
+      return json({ scripts: (await listOfficial(env)).filter((o) => o.enabled).map((o) => ({ id: o.id, name: o.name, description: o.description })) });
     }
     if (path === "/api/match" && m === "POST") {
       const u = (await body<{ url: string }>(req)).url;

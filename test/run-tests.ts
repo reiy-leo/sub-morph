@@ -105,6 +105,8 @@ assert.equal(r.status, 201);
 const officialId = r.data.script.id;
 assert.equal((await api("/api/admin/official", "POST", { name: "x", pattern: "(", sourceType: "inline", scriptContent: "x" })).status, 400, "坏正则");
 const match = await api<{ match: { id: string } | null }>("/api/match", "POST", { url: "https://airport.example.com/sub?token=1" });
+const olist = await api<{ scripts: { id: string; name: string; pattern?: string }[] }>("/api/official");
+assert.ok(olist.data.scripts.some((x) => x.id === officialId) && olist.data.scripts.every((x) => x.pattern === undefined), "用户可列出官方脚本（不含正则和脚本）");
 // 整串匹配：只匹配到中间一段不算命中
 r = await api<{ script: { id: string } }>("/api/admin/official", "POST", { name: "部分", pattern: "airport\\.example\\.org", sourceType: "inline", scriptContent: "function main(c){return c}" });
 assert.equal((await api<{ match: unknown }>("/api/match", "POST", { url: "https://airport.example.org/sub" })).data.match, null, "正则需整串匹配");

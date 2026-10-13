@@ -24,6 +24,8 @@ export function SubEditor({ open, sub, limits, onClose, onSaved }: { open: boole
   const toast = useKumoToastManager();
   const [d, setD] = useState<SubDraft>(EMPTY);
   const [match, setMatch] = useState<OfficialMatch | null>(null);
+  const [officials, setOfficials] = useState<OfficialMatch[] | null>(null);
+  const [officialsError, setOfficialsError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,6 +52,13 @@ export function SubEditor({ open, sub, limits, onClose, onSaved }: { open: boole
     return () => clearTimeout(t);
   }, [d.url, open]);
 
+  // 切到「官方脚本」时拉取已启用的官方脚本列表供点选
+  useEffect(() => {
+    if (!open || d.scriptMode !== "official") return;
+    setOfficialsError(null);
+    api.official().then((r) => setOfficials(r.scripts)).catch((e) => setOfficialsError(e instanceof Error ? e.message : String(e)));
+  }, [open, d.scriptMode]);
+
   const set = <K extends keyof SubDraft>(k: K, v: SubDraft[K]) => setD((x) => ({ ...x, [k]: v }));
   const useOfficial = () => match && setD((x) => ({ ...x, scriptMode: "official", officialId: match.id }));
 
@@ -70,7 +79,7 @@ export function SubEditor({ open, sub, limits, onClose, onSaved }: { open: boole
 
   const modeTabs = [
     { value: "none", label: "不用脚本" },
-    ...(match || d.scriptMode === "official" ? [{ value: "official", label: "官方脚本" }] : []),
+    { value: "official", label: "官方脚本" },
     { value: "url", label: "脚本地址" },
     { value: "inline", label: "脚本内容" },
   ];
@@ -108,9 +117,43 @@ export function SubEditor({ open, sub, limits, onClose, onSaved }: { open: boole
 
             <div className="grid gap-3">
               <Text bold>覆写脚本</Text>
-              <Tabs value={d.scriptMode} onValueChange={(v) => setD((x) => ({ ...x, scriptMode: v as SubDraft["scriptMode"], officialId: v === "official" ? (match?.id ?? x.officialId) : x.officialId }))} tabs={modeTabs} />
+              <Tabs value={d.scriptMode} onValueChange={(v) => setD((x) => ({ ...x, scriptMode: v as SubDraft["scriptMode"], officialId: v === "official" ? (x.officialId ?? match?.id ?? null) : x.officialId }))} tabs={modeTabs} />
               {d.scriptMode === "official" && (
-                <Text variant="secondary" size="sm">使用官方脚本「{match?.name ?? sub?.officialName ?? "未知"}」，管理员更新后自动同步。</Text>
+                <div className="grid gap-2">
+                  {officialsError ? (
+                    <Banner variant="error" title="官方脚本列表加载失败" description={officialsError} />
+                  ) : !officials ? (
+                    <Text variant="secondary" size="sm">正在加载官方脚本…</Text>
+                  ) : officials.length === 0 ? (
+                    <Text variant="secondary" size="sm">还没有可用的官方脚本。</Text>
+                  ) : (
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {officials.map((o) => {
+                        const picked = d.officialId === o.id;
+                        return (
+                          <button
+                            key={o.id}
+                            type="button"
+                            aria-pressed={picked}
+                            onClick={() => set("officialId", o.id)}
+                            className={`grid gap-0.5 rounded-lg px-3 py-2 text-left ring ${picked ? "bg-kumo-recessed ring-2 ring-kumo-brand" : "ring-kumo-line hover:bg-kumo-recessed"}`}
+                          >
+                            <span className="flex flex-wrap items-center gap-1.5 font-medium">
+                              {o.name}
+                              {match?.id === o.id && <Badge variant="green">匹配当前订阅</Badge>}
+                            </span>
+                            {o.description && <span className="text-xs text-kumo-subtle">{o.description}</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <Text variant="secondary" size="sm">
+                    {officials?.find((o) => o.id === d.officialId)
+                      ? `使用官方脚本「${officials.find((o) => o.id === d.officialId)!.name}」，管理员更新后自动同步。`
+                      : "点选一个官方脚本。原订阅地址命中某个官方脚本时，上方也会提示一键使用。"}
+                  </Text>
+                </div>
               )}
               {d.scriptMode === "url" && (
                 <div className="grid gap-1.5">
