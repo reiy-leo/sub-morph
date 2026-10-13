@@ -70,7 +70,7 @@ pnpm deploy:inline                    # 部署（API Token：静态资源内联�
 
 ## 设计
 
-全站设计以 **kumo-design** skill 为准（`.agents/skills/kumo-design/SKILL.md`），尽量用 Kumo 组件。要点：正文 14px、标题 sentence case、不用 `font-bold` / `tracking-*`、hover 不做颜色过渡、阴影配 `ring` 不配 `border`、LayerCard 不嵌套、Dialog 永远挂载用 `open` 控制、只用 `kumo-*` 语义色、不用 `dark:`。`pnpm lint` 自动检查。
+全站设计以 **kumo-design** skill 为准（`.agents/skills/kumo-design/SKILL.md`），尽量用 Kumo 组件。要点：正文 14px、标题 sentence case、不用 `font-bold` / `tracking-*`、hover 不做颜色过渡、阴影配 `ring` 不配 `border`、LayerCard 不嵌套、Dialog 永远挂载用 `open` 控制、只用 `kumo-*` 语义色、不用 `dark:`。Input / InputArea 只给 `aria-label` 时不要传 `description`（Kumo 会渲染一个空的 label 行，控件上方出现大块空白）；说明文字改用控件下方的 `<Text variant="secondary" size="sm">`，或者直接给 `label`。`pnpm lint` 自动检查。
 
 ## 代码规范
 

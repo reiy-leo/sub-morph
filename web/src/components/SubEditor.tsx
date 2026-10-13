@@ -101,17 +101,23 @@ export function SubEditor({ open, sub, limits, onClose, onSaved }: { open: boole
               </Select>
             </div>
 
-            <div className="grid gap-2">
+            <div className="grid gap-3">
               <Text bold>覆写脚本</Text>
               <Tabs value={d.scriptMode} onValueChange={(v) => setD((x) => ({ ...x, scriptMode: v as SubDraft["scriptMode"], officialId: v === "official" ? (match?.id ?? x.officialId) : x.officialId }))} tabs={modeTabs} />
               {d.scriptMode === "official" && (
                 <Text variant="secondary" size="sm">使用官方脚本「{match?.name ?? sub?.officialName ?? "未知"}」，管理员更新后自动同步。</Text>
               )}
               {d.scriptMode === "url" && (
-                <Input aria-label="脚本地址" placeholder="https://raw.githubusercontent.com/…/override.js" value={d.scriptUrl} onChange={(e) => set("scriptUrl", e.target.value)} description="每次客户端更新时拉取（缓存 5 分钟），脚本变化会记录在拉取记录里。" />
+                <div className="grid gap-1.5">
+                  <Input aria-label="脚本地址" placeholder="https://raw.githubusercontent.com/…/override.js" value={d.scriptUrl} onChange={(e) => set("scriptUrl", e.target.value)} />
+                  <Text variant="secondary" size="sm">每次客户端更新时拉取（缓存 5 分钟），脚本变化会记录在拉取记录里。</Text>
+                </div>
               )}
               {d.scriptMode === "inline" && (
-                <InputArea aria-label="脚本内容" rows={10} className="font-mono text-sm" value={d.scriptContent || ""} placeholder={SAMPLE} onValueChange={(v) => set("scriptContent", v)} description={`定义 main(config, ctx) 并 return config；最大 ${limits.maxScriptKB} KB，限时 ${limits.scriptTimeoutMs / 1000} 秒，无网络。`} />
+                <div className="grid gap-1.5">
+                  <InputArea aria-label="脚本内容" rows={10} className="font-mono text-sm" value={d.scriptContent || ""} placeholder={SAMPLE} onValueChange={(v) => set("scriptContent", v)} />
+                  <Text variant="secondary" size="sm">{`定义 main(config, ctx) 并 return config；最大 ${limits.maxScriptKB} KB，限时 ${limits.scriptTimeoutMs / 1000} 秒，无网络。`}</Text>
+                </div>
               )}
             </div>
 

@@ -62,12 +62,18 @@ function OfficialEditor({ open, script, onClose, onSaved }: { open: boolean; scr
               <Input label="测试 URL" placeholder="粘贴一个订阅地址测试正则（只在浏览器里测试）" value={testUrl} onChange={(e) => setTestUrl(e.target.value)} />
               {test && <Badge variant={test === "命中" ? "green" : test === "未命中" ? "neutral" : "red"}>{test}</Badge>}
             </div>
-            <Tabs value={d.sourceType} onValueChange={(v) => set("sourceType", v as "url" | "inline")} tabs={[{ value: "url", label: "脚本地址" }, { value: "inline", label: "脚本内容" }]} />
-            {d.sourceType === "url" ? (
-              <Input aria-label="脚本地址" placeholder="https://raw.githubusercontent.com/…/override.js" value={d.scriptUrl} onChange={(e) => set("scriptUrl", e.target.value)} description="运行时拉取（缓存 5 分钟），记录 hash 与变化时间。" />
-            ) : (
-              <InputArea aria-label="脚本内容" rows={10} className="font-mono text-sm" value={d.scriptContent} onValueChange={(v) => set("scriptContent", v)} />
-            )}
+            <div className="grid gap-3">
+              <Text bold>脚本来源</Text>
+              <Tabs value={d.sourceType} onValueChange={(v) => set("sourceType", v as "url" | "inline")} tabs={[{ value: "url", label: "脚本地址" }, { value: "inline", label: "脚本内容" }]} />
+              {d.sourceType === "url" ? (
+                <div className="grid gap-1.5">
+                  <Input aria-label="脚本地址" placeholder="https://raw.githubusercontent.com/…/override.js" value={d.scriptUrl} onChange={(e) => set("scriptUrl", e.target.value)} />
+                  <Text variant="secondary" size="sm">运行时拉取（缓存 5 分钟），记录 hash 与变化时间。</Text>
+                </div>
+              ) : (
+                <InputArea aria-label="脚本内容" rows={10} className="font-mono text-sm" value={d.scriptContent} onValueChange={(v) => set("scriptContent", v)} />
+              )}
+            </div>
             <Switch label="启用" checked={d.enabled} onCheckedChange={(v) => set("enabled", v)} />
           </div>
           {error && <Banner variant="error" title="保存失败" description={error} />}
