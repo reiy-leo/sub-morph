@@ -34,7 +34,10 @@ export function CodeEditor({ value, onValueChange, placeholder, rows = 20, label
   const ref = useRef<HTMLTextAreaElement>(null);
   const n = useMemo(() => Math.max(countLines(value || placeholder || ""), rows), [value, placeholder, rows]);
   return (
-    <div className={cn(inputVariants({ parentFocusIndicator: true }), "flex h-auto overflow-hidden px-0 font-mono text-xs leading-5")}>
+    <div className={cn(inputVariants({ parentFocusIndicator: true }), "flex overflow-hidden px-0 font-mono text-xs leading-5")}
+      // 高度固定在外层：否则行号栏按内容撑高，整个弹窗跟着滚动
+      style={{ height: `${rows * LINE + PAD * 2}rem` }}
+    >
       <div aria-hidden className="shrink-0 overflow-hidden border-r border-kumo-line bg-kumo-recessed text-kumo-inactive select-none">
         <pre className="py-3 pr-2.5 pl-3 text-right" style={{ transform: `translateY(${-scrollTop}px)` }}>{numbers(n)}</pre>
       </div>
@@ -46,8 +49,7 @@ export function CodeEditor({ value, onValueChange, placeholder, rows = 20, label
         spellCheck={false}
         autoCapitalize="off"
         autoComplete="off"
-        className="kumo-input-placeholder min-w-0 flex-1 resize-none overflow-auto bg-transparent px-3 py-3 whitespace-pre outline-none"
-        style={{ height: `${rows * LINE + PAD * 2}rem` }}
+        className="kumo-input-placeholder h-full min-w-0 flex-1 resize-none overflow-auto bg-transparent px-3 py-3 whitespace-pre outline-none"
         value={value}
         placeholder={placeholder}
         onChange={(e) => onValueChange(e.target.value)}
