@@ -79,11 +79,16 @@ export async function runPipeline(env: Env, sub: SubRow, opts: { trigger: FetchT
   let scriptHash: string | null = null;
   let consoleLines: string[] = [];
   let proxies: number | null = null;
+  // 试运行时把原订阅内容回给本人看（不落库）；脚本出错时也能对照原文排查
+  let upstreamText: string | null = null;
+  let upstreamBytes: number | null = null;
 
   try {
     const url = await decrypt(sub.source_enc, encKey(env));
     const up = await fetchUpstream(env, url, pickUserAgent(sub, opts.clientUA));
     upstreamStatus = up.status;
+    upstreamBytes = up.text.length;
+    if (opts.trigger !== "client") upstreamText = up.text.slice(0, PREVIEW_MAX);
     format = detectFormat(up.text, sub.format);
     let config = parseConfig(up.text, format);
 
@@ -115,7 +120,7 @@ export async function runPipeline(env: Env, sub: SubRow, opts: { trigger: FetchT
       body,
       headers,
       served: "fresh",
-      preview: { ok: true, served: "fresh", httpStatus: 200, upstreamStatus, error: null, format, proxies, scriptHash, scriptChanged, durationMs: Date.now() - started, bytes: body.length, console: consoleLines, outputHead: body.slice(0, 8192) },
+      preview: { ok: true, served: "fresh", httpStatus: 200, upstreamStatus, error: null, format, proxies, scriptHash, scriptChanged, durationMs: Date.now() - started, bytes: body.length, console: consoleLines, outputHead: body.slice(0, PREVIEW_MAX), upstreamText, upstreamBytes },
     };
   } catch (e) {
     let status = 500;
@@ -147,7 +152,7 @@ export async function runPipeline(env: Env, sub: SubRow, opts: { trigger: FetchT
             body: cache.body,
             headers,
             served: "fallback",
-            preview: { ok: false, served: "fallback", httpStatus: 200, upstreamStatus, error: message, format: cache.format, proxies: null, scriptHash, scriptChanged, durationMs: Date.now() - started, bytes: cache.body.length, console: consoleLines, outputHead: null },
+            preview: { ok: false, served: "fallback", httpStatus: 200, upstreamStatus, error: message, format: cache.format, proxies: null, scriptHash, scriptChanged, durationMs: Date.now() - started, bytes: cache.body.length, console: consoleLines, outputHead: null, upstreamText, upstreamBytes },
           };
         } catch (err) {
           console.error("fallback cache read failed", err);
@@ -161,12 +166,14 @@ export async function runPipeline(env: Env, sub: SubRow, opts: { trigger: FetchT
       body: `sub-morph：${statusLabel(status)}\n${message}\n`,
       headers: { "Content-Type": "text/plain; charset=utf-8" },
       served: "error",
-      preview: { ok: false, served: "error", httpStatus: status, upstreamStatus, error: message, format, proxies: null, scriptHash, scriptChanged, durationMs: Date.now() - started, bytes: null, console: consoleLines, outputHead: null },
+      preview: { ok: false, served: "error", httpStatus: status, upstreamStatus, error: message, format, proxies: null, scriptHash, scriptChanged, durationMs: Date.now() - started, bytes: null, console: consoleLines, outputHead: null, upstreamText, upstreamBytes },
     };
   }
 }
 
 const MAX_LOGS_PER_SUB = 100;
+/** 试运行回显的原订阅 / 输出内容上限（字符）。 */
+const PREVIEW_MAX = 256 * 1024;
 
 /** 写日志 + 更新订阅状态；返回脚本是否变化（与上次记录的 hash 不同）。 */
 async function record(

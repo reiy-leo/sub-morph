@@ -129,8 +129,9 @@ assert.doesNotMatch(text, /name: JP 01/, "脚本生效");
 assert.equal(seenUA.at(-1), "FlClash/v0.8 clash-verge Platform/android", "透传客户端 UA");
 
 // 预览
-let p = await api<{ result: { ok: boolean; proxies: number; console: string[]; scriptChanged: boolean } }>(`/api/subs/${sub.id}/preview`, "POST");
+let p = await api<{ result: { ok: boolean; proxies: number; console: string[]; scriptChanged: boolean; upstreamText?: string | null } }>(`/api/subs/${sub.id}/preview`, "POST");
 assert.equal(p.data.result.ok, true);
+assert.match(p.data.result.upstreamText ?? "", /name: JP 01/, "试运行回显原订阅内容");
 assert.equal(p.data.result.proxies, 1);
 assert.deepEqual(p.data.result.console, ["kept 1"]);
 assert.equal(p.data.result.scriptChanged, false);

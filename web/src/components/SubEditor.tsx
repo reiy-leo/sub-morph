@@ -1,7 +1,8 @@
 // 新建 / 编辑订阅对话框。原订阅地址变化时检查是否命中官方脚本，命中则提示一键使用。
 import { useEffect, useState } from "react";
 import { UA_PRESET_GROUPS } from "../uaPresets";
-import { Banner, Button, Dialog, Input, InputArea, Select, Switch, Tabs, Text, useKumoToastManager } from "@cloudflare/kumo";
+import { CodeEditor } from "./CodeLines.tsx";
+import { Banner, Button, Dialog, Input, Select, Switch, Tabs, Text, useKumoToastManager } from "@cloudflare/kumo";
 import { SealCheckIcon } from "@phosphor-icons/react";
 import type { Limits, OfficialMatch, SubView } from "../../../src/shared/types.ts";
 import { api, type SubDraft } from "../api.ts";
@@ -116,7 +117,7 @@ export function SubEditor({ open, sub, limits, onClose, onSaved }: { open: boole
               )}
               {d.scriptMode === "inline" && (
                 <div className="grid gap-1.5">
-                  <InputArea aria-label="脚本内容" rows={10} className="font-mono text-sm" value={d.scriptContent || ""} placeholder={SAMPLE} onValueChange={(v) => set("scriptContent", v)} />
+                  <CodeEditor label="脚本内容" value={d.scriptContent || ""} placeholder={SAMPLE} onValueChange={(v) => set("scriptContent", v)} />
                   <Text variant="secondary" size="sm">{`定义 main(config, ctx) 并 return config；最大 ${limits.maxScriptKB} KB，限时 ${limits.scriptTimeoutMs / 1000} 秒，无网络。`}</Text>
                 </div>
               )}

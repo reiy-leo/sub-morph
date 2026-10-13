@@ -1,6 +1,7 @@
 // 管理后台：官方脚本（正则 + 脚本）、用户、订阅、拉取记录。只有 ADMIN_EMAILS 能进。
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Badge, Banner, Button, Dialog, Empty, Input, InputArea, LayerCard, Loader, Switch, Table, Tabs, Text, useKumoToastManager } from "@cloudflare/kumo";
+import { CodeEditor } from "../components/CodeLines.tsx";
+import { Badge, Banner, Button, Dialog, Empty, Input, LayerCard, Loader, Switch, Table, Tabs, Text, useKumoToastManager } from "@cloudflare/kumo";
 import { ArrowClockwiseIcon, GoogleLogoIcon, LockKeyIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from "@phosphor-icons/react";
 import type { FetchLogView, OfficialScriptView, UserView } from "../../../src/shared/types.ts";
 import { api, type AdminSub, type OfficialDraft } from "../api.ts";
@@ -71,7 +72,7 @@ function OfficialEditor({ open, script, onClose, onSaved }: { open: boolean; scr
                   <Text variant="secondary" size="sm">运行时拉取（缓存 5 分钟），记录 hash 与变化时间。</Text>
                 </div>
               ) : (
-                <InputArea aria-label="脚本内容" rows={10} className="font-mono text-sm" value={d.scriptContent} onValueChange={(v) => set("scriptContent", v)} />
+                <CodeEditor label="脚本内容" value={d.scriptContent} onValueChange={(v) => set("scriptContent", v)} />
               )}
             </div>
             <Switch label="启用" checked={d.enabled} onCheckedChange={(v) => set("enabled", v)} />

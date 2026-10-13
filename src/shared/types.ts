@@ -124,8 +124,12 @@ export interface PreviewResult {
   durationMs: number;
   bytes: number | null;
   console: string[];
-  /** 输出内容开头（最多 8KB），只返回给本人，不落库。 */
+  /** 输出内容（最多 256K 字符），只返回给本人，不落库。 */
   outputHead: string | null;
+  /** 拉到的原订阅内容（最多 256K 字符），只在试运行时返回给本人，不落库。 */
+  upstreamText?: string | null;
+  /** 原订阅内容总长度（字符）。 */
+  upstreamBytes?: number | null;
 }
 
 export type LoginError = "unconfigured" | "denied" | "state" | "token" | "id_token" | "unverified" | "disabled";
