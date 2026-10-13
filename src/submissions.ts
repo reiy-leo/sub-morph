@@ -28,8 +28,8 @@ export interface SubmissionRow {
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-/** 按原订阅主机名生成建议正则：匹配该主机及其子域名。 */
-export const suggestPattern = (host: string) => `^https?://([^/?#]*\\.)?${escapeRe(host.toLowerCase())}(:\\d+)?([/?#]|$)`;
+/** 按原订阅主机名生成建议正则（整串匹配）：该主机及其子域名下的任意地址。 */
+export const suggestPattern = (host: string) => `https?://([^/?#]*\\.)?${escapeRe(host.toLowerCase())}(:\\d+)?([/?#].*)?`;
 
 export const submissionView = (r: SubmissionRow, full: boolean): SubmissionView => ({
   id: r.id,

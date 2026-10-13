@@ -1,7 +1,8 @@
-// 官方脚本：管理员维护的「正则 + 脚本」对。正则匹配原订阅 URL，命中后用户可一键使用。
+// 官方脚本：管理员维护的「正则 + 脚本」对。正则整串匹配原订阅 URL（从开头到结尾），命中后用户可一键使用。
 import type { Env } from "./env.ts";
 import { InputError } from "./errors.ts";
 import { randomId } from "./crypto.ts";
+import { compilePattern } from "./shared/pattern.ts";
 import type { OfficialMatch, OfficialScriptView } from "./shared/types.ts";
 
 export interface OfficialRow {
@@ -44,13 +45,7 @@ export async function listOfficial(env: Env): Promise<OfficialRow[]> {
 
 export const getOfficial = (env: Env, id: string) => env.DB.prepare("SELECT * FROM official_scripts WHERE id = ?1").bind(id).first<OfficialRow>();
 
-function compile(pattern: string): RegExp | null {
-  try {
-    return new RegExp(pattern, "i");
-  } catch {
-    return null;
-  }
-}
+const compile = compilePattern;
 
 /** 第一个命中的已启用官方脚本（priority 大的优先）。 */
 export async function matchOfficial(env: Env, url: string): Promise<OfficialMatch | null> {

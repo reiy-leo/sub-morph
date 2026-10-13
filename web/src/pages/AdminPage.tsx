@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { CodeEditor } from "../components/CodeLines.tsx";
 import { Badge, Banner, Button, Dialog, Empty, Input, LayerCard, Loader, Switch, Table, Tabs, Text, useKumoToastManager } from "@cloudflare/kumo";
 import { ArrowClockwiseIcon, GoogleLogoIcon, LockKeyIcon, PencilSimpleIcon, PlusIcon, TrashIcon } from "@phosphor-icons/react";
+import { compilePattern } from "../../../src/shared/pattern.ts";
 import type { FetchLogView, OfficialScriptView, SubmissionView, UserView } from "../../../src/shared/types.ts";
 import { api, type AdminSub, type OfficialDraft } from "../api.ts";
 import { useAuth } from "../components/Auth.tsx";
@@ -38,11 +39,8 @@ function OfficialEditor({ open, script, initial, title, saveLabel, onSubmit, onC
   const set = <K extends keyof OfficialDraft>(k: K, v: OfficialDraft[K]) => setD((x) => ({ ...x, [k]: v }));
   const test = useMemo(() => {
     if (!d.pattern || !testUrl) return null;
-    try {
-      return new RegExp(d.pattern, "i").test(testUrl) ? "命中" : "未命中";
-    } catch {
-      return "正则语法错误";
-    }
+    const re = compilePattern(d.pattern);
+    return !re ? "正则语法错误" : re.test(testUrl) ? "命中" : "未命中";
   }, [d.pattern, testUrl]);
 
   async function save() {
@@ -69,7 +67,7 @@ function OfficialEditor({ open, script, initial, title, saveLabel, onSubmit, onC
               <Input label="优先级" type="number" value={String(d.priority)} onChange={(e) => set("priority", Number(e.target.value) || 0)} description="大的先匹配" />
             </div>
             <Input label="说明（用户能看到）" value={d.description} onChange={(e) => set("description", e.target.value)} />
-            <Input label="正则（匹配原订阅 URL，不区分大小写）" placeholder="^https://([a-z0-9-]+\.)?example\.com/" className="font-mono" value={d.pattern} onChange={(e) => set("pattern", e.target.value)} />
+            <Input label="正则（整串匹配原订阅 URL：从开头到结尾，不区分大小写）" placeholder="https://([a-z0-9-]+\.)?example\.com/.*" description="会自动加上 ^ 和 $，后面还有路径时要写 .*" className="font-mono" value={d.pattern} onChange={(e) => set("pattern", e.target.value)} />
             <div className="grid gap-1.5">
               <Input label="测试 URL" placeholder="粘贴一个订阅地址测试正则（只在浏览器里测试）" value={testUrl} onChange={(e) => setTestUrl(e.target.value)} />
               {test && <Badge variant={test === "命中" ? "green" : test === "未命中" ? "neutral" : "red"}>{test}</Badge>}

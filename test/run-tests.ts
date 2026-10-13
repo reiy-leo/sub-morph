@@ -100,11 +100,15 @@ assert.equal((await call(admin, "/api/subs", { method: "POST", headers: { Origin
 assert.equal((await pageOf(await call(guest, "/admin"))).kind, "admin", "访客打开后台：页面让他登录");
 
 // ---- 官方脚本 ----
-let r = await api<{ script: { id: string } }>("/api/admin/official", "POST", { name: "示例机场", pattern: "airport\\.example\\.com", sourceType: "url", scriptUrl: "https://scripts.example.com/a.js" });
+let r = await api<{ script: { id: string } }>("/api/admin/official", "POST", { name: "示例机场", pattern: "https://airport\\.example\\.com/.*", sourceType: "url", scriptUrl: "https://scripts.example.com/a.js" });
 assert.equal(r.status, 201);
 const officialId = r.data.script.id;
 assert.equal((await api("/api/admin/official", "POST", { name: "x", pattern: "(", sourceType: "inline", scriptContent: "x" })).status, 400, "坏正则");
 const match = await api<{ match: { id: string } | null }>("/api/match", "POST", { url: "https://airport.example.com/sub?token=1" });
+// 整串匹配：只匹配到中间一段不算命中
+r = await api<{ script: { id: string } }>("/api/admin/official", "POST", { name: "部分", pattern: "airport\\.example\\.org", sourceType: "inline", scriptContent: "function main(c){return c}" });
+assert.equal((await api<{ match: unknown }>("/api/match", "POST", { url: "https://airport.example.org/sub" })).data.match, null, "正则需整串匹配");
+assert.equal((await api(`/api/admin/official/${r.data.script.id}`, "DELETE")).status, 200);
 assert.equal(match.data.match?.id, officialId);
 assert.equal((await api<{ match: null }>("/api/match", "POST", { url: "https://other.example.com/" })).data.match, null);
 
@@ -189,7 +193,7 @@ const sm = subs2.data.submissions[0]!;
 assert.equal(sm.sourceHost, "sub.newair.example.net");
 assert.match(sm.scriptContent, /c\.x = 1/);
 assert.ok(!JSON.stringify(sqlite.prepare("SELECT * FROM script_submissions").all()).includes("T0P"), "投稿不含订阅 token");
-const re = new RegExp(sm.suggestedPattern, "i");
+const re = new RegExp(`^(?:${sm.suggestedPattern})$`, "i");
 assert.ok(re.test("https://sub.newair.example.net/api?token=x") && re.test("https://a.sub.newair.example.net/") && !re.test("https://sub.newair.example.net.evil.com/"));
 r = await api<{ script: { id: string } }>(`/api/admin/submissions/${sm.id}/approve`, "POST", { name: "新机场", pattern: sm.suggestedPattern, sourceType: "inline", scriptContent: sm.scriptContent });
 assert.equal(r.status, 200);
