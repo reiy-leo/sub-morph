@@ -1,10 +1,11 @@
-// 试运行结果：状态、节点数、脚本是否变化、console 输出、原订阅内容与输出内容（带行号）。
+// 试运行结果：状态、节点数、脚本是否变化、console 输出、原订阅与输出的逐行对比（缺一边时退回单独显示）。
 import { Badge, Banner, Button, Dialog, Loader, Text } from "@cloudflare/kumo";
 import type { PreviewResult } from "../../../src/shared/types.ts";
 import { statusLabel } from "../api.ts";
 import { fmtBytes, shortHash } from "../format.ts";
 import { ServedBadge } from "./StatusBadge.tsx";
 import { CodeView } from "./CodeLines.tsx";
+import { DiffView } from "./DiffView.tsx";
 
 export function PreviewDialog({ open, name, result, loading, error, onClose }: { open: boolean; name: string; result: PreviewResult | null; loading: boolean; error: string | null; onClose: () => void }) {
   return (
@@ -38,17 +39,28 @@ export function PreviewDialog({ open, name, result, loading, error, onClose }: {
                   <pre className="max-h-48 overflow-auto rounded-lg bg-kumo-recessed p-3 font-mono text-xs whitespace-pre-wrap">{result.console.join("\n")}</pre>
                 </div>
               )}
-              {result.upstreamText != null && (
-                <div className="grid gap-1.5">
-                  <Text bold>原订阅内容{result.upstreamBytes && result.upstreamBytes > result.upstreamText.length ? "（前 256K 字符）" : ""}</Text>
-                  <CodeView label="原订阅内容" text={result.upstreamText} />
-                </div>
-              )}
-              {result.outputHead && (
-                <div className="grid gap-1.5">
-                  <Text bold>输出内容{result.bytes && result.bytes > result.outputHead.length ? "（前 256K 字符）" : ""}</Text>
-                  <CodeView label="输出内容" text={result.outputHead} />
-                </div>
+              {result.upstreamText != null && result.outputHead ? (
+                <DiffView
+                  before={result.upstreamText}
+                  after={result.outputHead}
+                  beforeTitle={`原订阅${result.upstreamBytes && result.upstreamBytes > result.upstreamText.length ? "（前 256K 字符）" : ""}`}
+                  afterTitle={`输出${result.bytes && result.bytes > result.outputHead.length ? "（前 256K 字符）" : ""}`}
+                />
+              ) : (
+                <>
+                  {result.upstreamText != null && (
+                    <div className="grid gap-1.5">
+                      <Text bold>原订阅内容{result.upstreamBytes && result.upstreamBytes > result.upstreamText.length ? "（前 256K 字符）" : ""}</Text>
+                      <CodeView label="原订阅内容" text={result.upstreamText} />
+                    </div>
+                  )}
+                  {result.outputHead && (
+                    <div className="grid gap-1.5">
+                      <Text bold>输出内容{result.bytes && result.bytes > result.outputHead.length ? "（前 256K 字符）" : ""}</Text>
+                      <CodeView label="输出内容" text={result.outputHead} />
+                    </div>
+                  )}
+                </>
               )}
             </>
           )}

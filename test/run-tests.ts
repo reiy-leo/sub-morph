@@ -7,6 +7,7 @@ import worker from "../src/index.ts";
 import type { Env } from "../src/env.ts";
 import { parseQx, serializeQx } from "../src/formats/qx.ts";
 import { maskHost, scrubUrls } from "../src/urls.ts";
+import { collapse, diffRows } from "../web/src/lib/diffRows.ts";
 
 // ---- 假 D1 ----
 const sqlite = new DatabaseSync(":memory:");
@@ -210,5 +211,16 @@ assert.equal((await pull(q.outputUrl)).status, 410);
 // ---- 限流 ----
 for (let i = 0; i < 40; i++) await worker.fetch(new Request(L + "/s/x", { headers: { "CF-Connecting-IP": "1.1.1.1" } }) as never, admin);
 assert.equal((await worker.fetch(new Request(L + "/s/x", { headers: { "CF-Connecting-IP": "1.1.1.1" } }) as never, admin)).status, 429);
+
+// ---- 试运行对比（前端 diff）----
+{
+  const a = Array.from({ length: 30 }, (_, i) => `line${i}`).join("\n") + "\n";
+  const b = a.replace("line10\n", "LINE10\nextra\n").replace("line25\n", "");
+  const d = diffRows(a, b);
+  assert.equal(d.changed, 3);
+  const c = collapse(d.rows).map((r) => (r.kind === "gap" ? `gap${r.count}` : `${r.l?.n ?? "-"}${r.l?.k[0] ?? ""}|${r.r?.n ?? "-"}${r.r?.k[0] ?? ""}`));
+  assert.deepEqual(c, ["gap7", "8s|8s", "9s|9s", "10s|10s", "11d|11a", "-|12a", "12s|13s", "13s|14s", "14s|15s", "gap8", "23s|24s", "24s|25s", "25s|26s", "26d|-", "27s|27s", "28s|28s", "29s|29s", "gap1"]);
+  assert.equal(diffRows("x\n", "x\n").changed, 0);
+}
 
 console.log("✓ 全部测试通过");
