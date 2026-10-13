@@ -62,9 +62,9 @@ function OfficialEditor({ open, script, initial, title, saveLabel, onSubmit, onC
         <div className="grid gap-5">
           <Dialog.Title className="text-base font-semibold">{title ?? (script ? "编辑官方脚本" : "添加官方脚本")}</Dialog.Title>
           <div className="grid gap-4">
-            <div className="grid gap-4 sm:grid-cols-[1fr_8rem]">
-              <Input label="名称" placeholder="如：某某机场去广告分组" value={d.name} onChange={(e) => set("name", e.target.value)} />
-              <Input label="优先级" type="number" value={String(d.priority)} onChange={(e) => set("priority", Number(e.target.value) || 0)} description="大的先匹配" />
+            <div className="grid items-start gap-4 sm:grid-cols-[minmax(0,1fr)_10rem]">
+              <Input label="名称" placeholder="如：某某机场去广告分组" className="w-full min-w-0" value={d.name} onChange={(e) => set("name", e.target.value)} />
+              <Input label="优先级（大的先匹配）" type="number" className="w-full min-w-0" value={String(d.priority)} onChange={(e) => set("priority", Number(e.target.value) || 0)} />
             </div>
             <Input label="说明（用户能看到）" value={d.description} onChange={(e) => set("description", e.target.value)} />
             <Input label="正则（整串匹配原订阅 URL：从开头到结尾，不区分大小写）" placeholder="https://([a-z0-9-]+\.)?example\.com/.*" description="会自动加上 ^ 和 $，后面还有路径时要写 .*" className="font-mono" value={d.pattern} onChange={(e) => set("pattern", e.target.value)} />
