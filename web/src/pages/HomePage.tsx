@@ -46,9 +46,7 @@ function Landing({ loginError, loginReady }: { loginError: LoginError | null; lo
     <main className="mx-auto grid max-w-3xl gap-10 px-5 py-14">
       {loginError && <Banner variant="error" icon={<WarningCircleIcon weight="fill" />} title="登录失败" description={LOGIN_ERRORS[loginError]} />}
       <div className="grid gap-4">
-        <span className="flex size-11 items-center justify-center rounded-xl bg-kumo-brand text-white">
-          <ArrowsLeftRightIcon size={24} weight="bold" />
-        </span>
+        <img src="/icon-192.png" alt="" className="size-11" />
         <div className="grid gap-2">
           <Text variant="heading" size="lg" as="h1">订阅矫正</Text>
           <Text variant="secondary">

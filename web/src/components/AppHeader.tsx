@@ -1,7 +1,7 @@
 // 吸顶顶栏：左侧站点名（中文名 + 英文名小号副标题），右侧导航、主题切换、账号菜单 / 登录按钮。
 import { useState, type ReactNode } from "react";
 import { Button, DropdownMenu, Text } from "@cloudflare/kumo";
-import { ArrowsLeftRightIcon, CaretDownIcon, DesktopIcon, GearSixIcon, GoogleLogoIcon, MoonIcon, SignOutIcon, SunIcon } from "@phosphor-icons/react";
+import { CaretDownIcon, DesktopIcon, GearSixIcon, GoogleLogoIcon, MoonIcon, SignOutIcon, SunIcon } from "@phosphor-icons/react";
 import { useAuth } from "./Auth.tsx";
 import { getThemePref, setThemePref, type ThemePref } from "../theme.ts";
 
@@ -42,9 +42,7 @@ export function AppHeader({ children }: { children?: ReactNode }) {
     <header className="sticky top-0 z-10 border-b border-kumo-line bg-kumo-base">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-5">
         <a href="/" className="flex min-w-0 items-center gap-2">
-          <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-kumo-brand text-white">
-            <ArrowsLeftRightIcon size={16} weight="bold" />
-          </span>
+          <img src="/favicon-64.png" alt="" className="size-7 shrink-0" />
           <Text variant="heading" as="span">订阅矫正</Text>
           <span className="hidden sm:inline">
             <Text variant="secondary" size="sm" as="span">Subscription Braces</Text>
