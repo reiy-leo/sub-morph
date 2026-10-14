@@ -52,11 +52,6 @@ export function AppHeader({ children }: { children?: ReactNode }) {
         </a>
         <div className="flex min-w-0 items-center gap-1">
           {children}
-          {user?.admin && (
-            <Button variant="ghost" icon={GearSixIcon} onClick={() => (location.href = "/admin")}>
-              <span className="hidden sm:inline">管理后台</span>
-            </Button>
-          )}
           <ThemeMenu />
           {user ? (
             <>
@@ -75,6 +70,14 @@ export function AppHeader({ children }: { children?: ReactNode }) {
                     <DropdownMenu.Label>{user.email}</DropdownMenu.Label>
                   </DropdownMenu.Group>
                   <DropdownMenu.Separator />
+                  {user.admin && (
+                    <>
+                      <DropdownMenu.Item icon={GearSixIcon} onClick={() => (location.href = "/admin")}>
+                        管理后台
+                      </DropdownMenu.Item>
+                      <DropdownMenu.Separator />
+                    </>
+                  )}
                   <DropdownMenu.Item icon={SignOutIcon} onClick={() => (document.getElementById("logout-form") as HTMLFormElement | null)?.submit()}>
                     退出登录
                   </DropdownMenu.Item>
