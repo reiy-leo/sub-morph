@@ -110,7 +110,6 @@ export interface OfficialScriptView {
   scriptUrl: string;
   scriptContent: string;
   enabled: boolean;
-  priority: number;
   lastHash: string | null;
   lastFetchedAt: number | null;
   lastChangedAt: number | null;

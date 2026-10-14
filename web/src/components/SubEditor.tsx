@@ -1,9 +1,8 @@
-// 新建 / 编辑订阅对话框。原订阅地址变化时检查是否命中官方脚本，命中则提示一键使用。
+// 新建 / 编辑订阅对话框。「官方脚本」标签里点「获取官方脚本」拉取全部命中项，用户选一个。
 import { useEffect, useState } from "react";
 import { UA_PRESET_GROUPS } from "../uaPresets";
 import { CodeEditor } from "./CodeLines.tsx";
 import { Badge, Banner, Button, Dialog, Input, Select, Switch, Tabs, Text, useKumoToastManager } from "@cloudflare/kumo";
-import { SealCheckIcon } from "@phosphor-icons/react";
 import type { Limits, OfficialMatch, SubView } from "../../../src/shared/types.ts";
 import { api, type SubDraft } from "../api.ts";
 import { FORMAT_LABEL } from "../format.ts";
@@ -23,7 +22,6 @@ function main(config, ctx) {
 export function SubEditor({ open, sub, limits, onClose, onSaved }: { open: boolean; sub: SubView | null; limits: Limits; onClose: () => void; onSaved: (s: SubView) => void }) {
   const toast = useKumoToastManager();
   const [d, setD] = useState<SubDraft>(EMPTY);
-  const [match, setMatch] = useState<OfficialMatch | null>(null);
   const [officials, setOfficials] = useState<OfficialMatch[] | null>(null);
   const [officialsError, setOfficialsError] = useState<string | null>(null);
   const [fetching, setFetching] = useState(false);
@@ -38,20 +36,7 @@ export function SubEditor({ open, sub, limits, onClose, onSaved }: { open: boole
         ? { name: sub.name, url: sub.url ?? "", format: sub.format, userAgent: sub.userAgent, scriptMode: sub.scriptMode, officialId: sub.officialId, scriptUrl: sub.scriptUrl, scriptContent: sub.scriptContent, fallback: sub.fallback, submitOfficial: false }
         : EMPTY,
     );
-    setMatch(sub?.officialId && sub.officialName ? { id: sub.officialId, name: sub.officialName, description: "" } : null);
   }, [open, sub]);
-
-  // 原订阅地址变化 → 查官方脚本（防抖 400ms）
-  useEffect(() => {
-    if (!open || !/^https?:\/\/\S+/i.test(d.url)) {
-      if (open && !d.url) setMatch(null);
-      return;
-    }
-    const t = setTimeout(() => {
-      api.match(d.url).then((r) => setMatch(r.match)).catch(() => {});
-    }, 400);
-    return () => clearTimeout(t);
-  }, [d.url, open]);
 
   // 打开弹窗或改了原订阅地址：清空上次获取的结果，需要重新点「获取」
   useEffect(() => {
@@ -66,7 +51,6 @@ export function SubEditor({ open, sub, limits, onClose, onSaved }: { open: boole
     try {
       const r = await api.official(d.url.trim());
       setOfficials(r.scripts);
-      if (r.scripts.length === 1) setD((x) => ({ ...x, officialId: r.scripts[0]!.id }));
     } catch (e) {
       setOfficialsError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -75,7 +59,6 @@ export function SubEditor({ open, sub, limits, onClose, onSaved }: { open: boole
   }
 
   const set = <K extends keyof SubDraft>(k: K, v: SubDraft[K]) => setD((x) => ({ ...x, [k]: v }));
-  const useOfficial = () => match && setD((x) => ({ ...x, scriptMode: "official", officialId: match.id }));
 
   async function save() {
     setSaving(true);
@@ -112,15 +95,6 @@ export function SubEditor({ open, sub, limits, onClose, onSaved }: { open: boole
 
           <div className="grid gap-4">
             <Input label="原订阅地址" placeholder="https://机场域名/api/v1/client/subscribe?token=…" value={d.url} onChange={(e) => set("url", e.target.value)} />
-            {match && d.scriptMode !== "official" && (
-              <Banner
-                variant="default"
-                icon={<SealCheckIcon weight="fill" />}
-                title={`匹配到官方脚本「${match.name}」`}
-                description={match.description || "管理员为这个订阅源准备了覆写脚本。"}
-                action={<Button size="sm" variant="primary" onClick={useOfficial}>一键使用</Button>}
-              />
-            )}
             <div className="grid gap-4 sm:grid-cols-2">
               <Input label="名称" placeholder="不填则用域名" value={d.name} onChange={(e) => set("name", e.target.value)} />
               <Select label="订阅格式" value={d.format} onValueChange={(v) => set("format", (v as SubDraft["format"]) ?? "auto")} items={FORMAT_LABEL}>
@@ -132,7 +106,7 @@ export function SubEditor({ open, sub, limits, onClose, onSaved }: { open: boole
 
             <div className="grid gap-3">
               <Text bold>覆写脚本</Text>
-              <Tabs value={d.scriptMode} onValueChange={(v) => setD((x) => ({ ...x, scriptMode: v as SubDraft["scriptMode"], officialId: v === "official" ? (x.officialId ?? match?.id ?? null) : x.officialId }))} tabs={modeTabs} />
+              <Tabs value={d.scriptMode} onValueChange={(v) => setD((x) => ({ ...x, scriptMode: v as SubDraft["scriptMode"], officialId: x.officialId }))} tabs={modeTabs} />
               {d.scriptMode === "official" && (
                 <div className="grid gap-2">
                   <div className="flex flex-wrap items-center gap-2">
@@ -141,7 +115,7 @@ export function SubEditor({ open, sub, limits, onClose, onSaved }: { open: boole
                       {!/^https?:\/\/\S+/i.test(d.url)
                         ? "先填写原订阅地址"
                         : d.officialId && (sub?.officialId === d.officialId || officials?.some((o) => o.id === d.officialId))
-                          ? `当前使用「${officials?.find((o) => o.id === d.officialId)?.name ?? sub?.officialName ?? match?.name ?? "官方脚本"}」，管理员更新后自动同步`
+                          ? `当前使用「${officials?.find((o) => o.id === d.officialId)?.name ?? sub?.officialName ?? "官方脚本"}」，管理员更新后自动同步`
                           : "按原订阅地址查找管理员准备的覆写脚本"}
                     </Text>
                   </div>
@@ -197,7 +171,7 @@ export function SubEditor({ open, sub, limits, onClose, onSaved }: { open: boole
                   </div>
                   <Text variant="secondary" size="sm">
                     {sub?.submission?.status === "rejected" && sub.submission.reviewNote ? `管理员备注：${sub.submission.reviewNote}。` : ""}
-                    打开后保存时，把这个脚本和原订阅的域名（不含路径和 token）交给管理员审核；通过后，同一机场的其他用户添加订阅时会看到「匹配到官方脚本」。已有待审核的投稿时会用新内容覆盖。
+                    打开后保存时，把这个脚本和原订阅的域名（不含路径和 token）交给管理员审核；通过后，同一机场的其他用户在「官方脚本」标签里就能获取到它。已有待审核的投稿时会用新内容覆盖。
                   </Text>
                 </div>
               )}

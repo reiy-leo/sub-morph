@@ -46,7 +46,7 @@ export interface SubDraft {
   submitOfficial?: boolean;
 }
 
-export type OfficialDraft = Pick<OfficialScriptView, "name" | "description" | "pattern" | "sourceType" | "scriptUrl" | "scriptContent" | "enabled" | "priority">;
+export type OfficialDraft = Pick<OfficialScriptView, "name" | "description" | "pattern" | "sourceType" | "scriptUrl" | "scriptContent" | "enabled">;
 export type AdminSub = SubView & { userEmail: string };
 
 export const api = {
@@ -59,7 +59,6 @@ export const api = {
   preview: (id: string) => request<{ result: PreviewResult; sub: SubView | null }>(`/api/subs/${id}/preview`, { method: "POST" }),
   logs: (id: string) => request<{ logs: FetchLogView[] }>(`/api/subs/${id}/logs`),
   official: (url: string) => request<{ scripts: OfficialMatch[] }>("/api/official", { method: "POST", body: body({ url }) }),
-  match: (url: string) => request<{ match: OfficialMatch | null }>("/api/match", { method: "POST", body: body({ url }) }),
   admin: {
     official: () => request<{ scripts: OfficialScriptView[] }>("/api/admin/official"),
     createOfficial: (d: OfficialDraft) => request<{ script: OfficialScriptView }>("/api/admin/official", { method: "POST", body: body(d) }),

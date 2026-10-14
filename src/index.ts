@@ -16,7 +16,6 @@
 //   POST   /api/subs/:id/archive           归档（不可撤销；之后只读，输出地址 410）
 //   POST   /api/subs/:id/preview           试运行（不影响客户端）
 //   GET    /api/subs/:id/logs              最近拉取记录
-//   POST   /api/match {url}                原订阅是否命中官方脚本
 // 管理员 API：
 //   GET/POST /api/admin/official, PUT/DELETE /api/admin/official/:id, POST /api/admin/official/:id/refresh
 //   GET /api/admin/submissions?status=, POST /api/admin/submissions/:id/approve|reject   用户投稿的官方脚本候选
@@ -26,7 +25,7 @@ import { approveSubmission, listSubmissions, rejectSubmission, submissionView } 
 import { googleConfigured, ipPerMinute, limitsOf, type Env } from "./env.ts";
 import { InputError } from "./errors.ts";
 import { renderPage } from "./html.ts";
-import { createOfficial, deleteOfficial, getOfficial, listOfficial, matchAllOfficial, matchOfficial, officialView, updateOfficial } from "./official.ts";
+import { createOfficial, deleteOfficial, getOfficial, listOfficial, matchAllOfficial, officialView, updateOfficial } from "./official.ts";
 import { runPipeline } from "./pipeline.ts";
 import { bumpDaily, bumpMinute, pruneUsage } from "./quota.ts";
 import { refreshOfficial, ScriptFetchError } from "./scripts.ts";
@@ -76,10 +75,6 @@ async function handleApi(req: Request, env: Env, path: string, url: URL): Promis
       const u = (await body<{ url: string }>(req)).url;
       if (typeof u !== "string" || !/^https?:\/\/\S+$/i.test(u.trim())) throw new InputError("请先填写原订阅地址");
       return json({ scripts: await matchAllOfficial(env, u.trim()) });
-    }
-    if (path === "/api/match" && m === "POST") {
-      const u = (await body<{ url: string }>(req)).url;
-      return json({ match: typeof u === "string" && u.trim() ? await matchOfficial(env, u.trim()) : null });
     }
     if ((r = new RegExp(`^/api/subs/${ID}(/[a-z]+)?$`).exec(path))) {
       const sub = await getSub(env, r[1]!);

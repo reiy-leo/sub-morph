@@ -6,7 +6,7 @@
 
 ## 功能
 
-- Google 登录，多用户；管理员维护「正则 + 脚本」官方脚本，订阅地址命中时一键使用
+- Google 登录，多用户；管理员维护「正则 + 脚本」官方脚本，订阅地址命中时在「官方脚本」标签里选用
 - 支持 Clash / Mihomo YAML 与 Quantumult X（自动识别），输出格式跟随输入
 - 脚本接口与 FlClash / Clash Verge 一致：`function main(config, ctx) { return config }`，在 QuickJS 沙箱里运行（无网络、限时、限内存）；QX 的结构化约定见 [docs/PRODUCT.md](docs/PRODUCT.md#quantumult-x)
 - 输出地址带 192 bit 随机密钥；编辑不变，「刷新地址」后旧地址返回 410 已失效

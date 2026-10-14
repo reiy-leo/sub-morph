@@ -40,7 +40,7 @@ function Landing({ loginError, loginReady }: { loginError: LoginError | null; lo
   const { loginUrl } = useAuth();
   const steps = [
     { t: "贴上原订阅", d: "支持 Clash / Mihomo YAML 和 Quantumult X，自动识别。" },
-    { t: "选一个覆写脚本", d: "官方脚本一键使用，也可以填脚本地址或直接贴代码，接口与 FlClash / Clash Verge 的 main(config) 一致。" },
+    { t: "选一个覆写脚本", d: "按订阅源选官方脚本，也可以填脚本地址或直接贴代码，接口与 FlClash / Clash Verge 的 main(config) 一致。" },
     { t: "客户端导入输出地址", d: "客户端按自己的周期更新订阅，脚本改了也会同步；每次拉取的成败都有记录。" },
   ];
   return (

@@ -1,4 +1,4 @@
-// 官方脚本：管理员维护的「正则 + 脚本」对。正则整串匹配原订阅 URL（从开头到结尾），命中后用户可一键使用。
+// 官方脚本：管理员维护的「正则 + 脚本」对。正则整串匹配原订阅 URL（从开头到结尾），用户在编辑订阅的「官方脚本」标签里获取全部命中项并选一个。
 import type { Env } from "./env.ts";
 import { InputError } from "./errors.ts";
 import { randomId } from "./crypto.ts";
@@ -31,7 +31,6 @@ export const officialView = (r: OfficialRow): OfficialScriptView => ({
   scriptUrl: r.script_url,
   scriptContent: r.script_content,
   enabled: Boolean(r.enabled),
-  priority: r.priority,
   lastHash: r.last_hash,
   lastFetchedAt: r.last_fetched_at,
   lastChangedAt: r.last_changed_at,
@@ -40,21 +39,12 @@ export const officialView = (r: OfficialRow): OfficialScriptView => ({
 });
 
 export async function listOfficial(env: Env): Promise<OfficialRow[]> {
-  return (await env.DB.prepare("SELECT * FROM official_scripts ORDER BY priority DESC, created_at ASC").all<OfficialRow>()).results;
+  return (await env.DB.prepare("SELECT * FROM official_scripts ORDER BY created_at ASC").all<OfficialRow>()).results;
 }
 
 export const getOfficial = (env: Env, id: string) => env.DB.prepare("SELECT * FROM official_scripts WHERE id = ?1").bind(id).first<OfficialRow>();
 
 const compile = compilePattern;
-
-/** 第一个命中的已启用官方脚本（priority 大的优先）。 */
-export async function matchOfficial(env: Env, url: string): Promise<OfficialMatch | null> {
-  for (const r of await listOfficial(env)) {
-    if (!r.enabled) continue;
-    if (compile(r.pattern)?.test(url)) return { id: r.id, name: r.name, description: r.description };
-  }
-  return null;
-}
 
 export interface OfficialInput {
   name?: unknown;
@@ -87,7 +77,7 @@ function validate(b: OfficialInput, maxScriptBytes: number) {
     scriptUrl: sourceType === "url" ? scriptUrl : "",
     scriptContent: sourceType === "inline" ? scriptContent : "",
     enabled: b.enabled === false ? 0 : 1,
-    priority: Number.isFinite(Number(b.priority)) ? Math.trunc(Number(b.priority)) : 0,
+    priority: 0, // 已不再使用（一个订阅只选一个官方脚本），列保留
   };
 }
 
@@ -125,7 +115,7 @@ export async function deleteOfficial(env: Env, id: string): Promise<boolean> {
   return (r.meta.changes ?? 0) > 0;
 }
 
-/** 命中该订阅地址的全部已启用官方脚本（priority 大的在前），不含正则和脚本内容。 */
+/** 命中该订阅地址的全部已启用官方脚本（按创建时间），不含正则和脚本内容。 */
 export async function matchAllOfficial(env: Env, url: string): Promise<OfficialMatch[]> {
   return (await listOfficial(env)).filter((r) => r.enabled && compile(r.pattern)?.test(url)).map((r) => ({ id: r.id, name: r.name, description: r.description }));
 }

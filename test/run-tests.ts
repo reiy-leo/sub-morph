@@ -104,16 +104,13 @@ let r = await api<{ script: { id: string } }>("/api/admin/official", "POST", { n
 assert.equal(r.status, 201);
 const officialId = r.data.script.id;
 assert.equal((await api("/api/admin/official", "POST", { name: "x", pattern: "(", sourceType: "inline", scriptContent: "x" })).status, 400, "坏正则");
-const match = await api<{ match: { id: string } | null }>("/api/match", "POST", { url: "https://airport.example.com/sub?token=1" });
 const olist = await api<{ scripts: { id: string; name: string; pattern?: string }[] }>("/api/official", "POST", { url: "https://airport.example.com/sub?token=1" });
 assert.ok(olist.data.scripts.some((x) => x.id === officialId) && olist.data.scripts.every((x) => x.pattern === undefined), "获取命中的官方脚本（不含正则和脚本）");
 assert.equal((await api<{ scripts: unknown[] }>("/api/official", "POST", { url: "https://other.example.com/sub" })).data.scripts.length, 0, "没命中返回空");
 // 整串匹配：只匹配到中间一段不算命中
 r = await api<{ script: { id: string } }>("/api/admin/official", "POST", { name: "部分", pattern: "airport\\.example\\.org", sourceType: "inline", scriptContent: "function main(c){return c}" });
-assert.equal((await api<{ match: unknown }>("/api/match", "POST", { url: "https://airport.example.org/sub" })).data.match, null, "正则需整串匹配");
+assert.equal((await api<{ scripts: unknown[] }>("/api/official", "POST", { url: "https://airport.example.org/sub" })).data.scripts.length, 0, "正则需整串匹配");
 assert.equal((await api(`/api/admin/official/${r.data.script.id}`, "DELETE")).status, 200);
-assert.equal(match.data.match?.id, officialId);
-assert.equal((await api<{ match: null }>("/api/match", "POST", { url: "https://other.example.com/" })).data.match, null);
 
 // ---- 订阅：官方脚本 + Clash ----
 assert.equal((await api("/api/subs", "POST", { url: "http://127.0.0.1/x" })).status, 400, "内网地址");
@@ -202,7 +199,7 @@ r = await api<{ script: { id: string } }>(`/api/admin/submissions/${sm.id}/appro
 assert.equal(r.status, 200);
 assert.equal((await api(`/api/admin/submissions/${sm.id}/reject`, "POST", {})).status, 409, "已处理过");
 assert.equal((await api<{ sub: { submission: { status: string; officialId: string } } }>(`/api/subs/${subm.id}`)).data.sub.submission.status, "approved");
-assert.equal((await api<{ match: { id: string } | null }>("/api/match", "POST", { url: "https://sub.newair.example.net/api?token=other" })).data.match?.id, r.data.script.id);
+assert.ok((await api<{ scripts: { id: string }[] }>("/api/official", "POST", { url: "https://sub.newair.example.net/api?token=other" })).data.scripts.some((x) => x.id === r.data.script.id));
 assert.match(await res.text(), /超时/);
 
 // ---- QX ----

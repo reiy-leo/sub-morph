@@ -13,7 +13,7 @@ import { LastBadge } from "../components/StatusBadge.tsx";
 import { FORMAT_LABEL, fmtRelative, fmtTime, MODE_LABEL, shortHash } from "../format.ts";
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
-const EMPTY: OfficialDraft = { name: "", description: "", pattern: "", sourceType: "url", scriptUrl: "", scriptContent: "", enabled: true, priority: 0 };
+const EMPTY: OfficialDraft = { name: "", description: "", pattern: "", sourceType: "url", scriptUrl: "", scriptContent: "", enabled: true };
 
 function OfficialEditor({ open, script, initial, title, saveLabel, onSubmit, onClose, onSaved }: {
   open: boolean;
@@ -34,7 +34,7 @@ function OfficialEditor({ open, script, initial, title, saveLabel, onSubmit, onC
   useEffect(() => {
     if (!open) return;
     setError(null);
-    setD(script ? { name: script.name, description: script.description, pattern: script.pattern, sourceType: script.sourceType, scriptUrl: script.scriptUrl, scriptContent: script.scriptContent, enabled: script.enabled, priority: script.priority } : (initial ?? EMPTY));
+    setD(script ? { name: script.name, description: script.description, pattern: script.pattern, sourceType: script.sourceType, scriptUrl: script.scriptUrl, scriptContent: script.scriptContent, enabled: script.enabled } : (initial ?? EMPTY));
   }, [open, script, initial]);
   const set = <K extends keyof OfficialDraft>(k: K, v: OfficialDraft[K]) => setD((x) => ({ ...x, [k]: v }));
   const test = useMemo(() => {
@@ -62,10 +62,7 @@ function OfficialEditor({ open, script, initial, title, saveLabel, onSubmit, onC
         <div className="grid gap-5">
           <Dialog.Title className="text-base font-semibold">{title ?? (script ? "编辑官方脚本" : "添加官方脚本")}</Dialog.Title>
           <div className="grid gap-4">
-            <div className="grid items-start gap-4 sm:grid-cols-[minmax(0,1fr)_10rem]">
-              <Input label="名称" placeholder="如：某某机场去广告分组" className="w-full min-w-0" value={d.name} onChange={(e) => set("name", e.target.value)} />
-              <Input label="优先级（大的先匹配）" type="number" className="w-full min-w-0" value={String(d.priority)} onChange={(e) => set("priority", Number(e.target.value) || 0)} />
-            </div>
+            <Input label="名称" placeholder="如：某某机场去广告分组" value={d.name} onChange={(e) => set("name", e.target.value)} />
             <Input label="说明（用户能看到）" value={d.description} onChange={(e) => set("description", e.target.value)} />
             <Input label="正则（整串匹配原订阅 URL：从开头到结尾，不区分大小写）" placeholder="https://([a-z0-9-]+\.)?example\.com/.*" description="会自动加上 ^ 和 $，后面还有路径时要写 .*" className="font-mono" value={d.pattern} onChange={(e) => set("pattern", e.target.value)} />
             <div className="grid gap-1.5">
@@ -126,7 +123,7 @@ function OfficialTab() {
   return (
     <div className="grid gap-4">
       <div className="flex items-center justify-between gap-3">
-        <Text variant="secondary" size="sm">用户的原订阅 URL 命中正则时，会提示「匹配到官方脚本」并可一键使用。</Text>
+        <Text variant="secondary" size="sm">用户的原订阅 URL 命中正则时，在编辑订阅的「官方脚本」标签里点「获取」就能看到并选用。</Text>
         <Button variant="primary" icon={PlusIcon} onClick={() => setEditing({ open: true, script: null })}>添加</Button>
       </div>
       {!list ? (
@@ -151,7 +148,6 @@ function OfficialTab() {
                 <Table.Row key={s.id}>
                   <Table.Cell className="max-w-48">
                     <div className="truncate font-medium">{s.name}</div>
-                    <div className="truncate text-xs text-kumo-subtle">优先级 {s.priority}</div>
                   </Table.Cell>
                   <Table.Cell className="max-w-56"><code className="block truncate text-xs">{s.pattern}</code></Table.Cell>
                   <Table.Cell className="max-w-56">
@@ -326,7 +322,7 @@ function SubmissionsTab({ onApproved }: { onApproved: () => void }) {
   const initial = useMemo<OfficialDraft | undefined>(
     () =>
       reviewing
-        ? { name: reviewing.subName, description: "", pattern: reviewing.suggestedPattern ?? "", sourceType: reviewing.sourceType ?? "inline", scriptUrl: reviewing.scriptUrl ?? "", scriptContent: reviewing.scriptContent ?? "", enabled: true, priority: 0 }
+        ? { name: reviewing.subName, description: "", pattern: reviewing.suggestedPattern ?? "", sourceType: reviewing.sourceType ?? "inline", scriptUrl: reviewing.scriptUrl ?? "", scriptContent: reviewing.scriptContent ?? "", enabled: true }
         : undefined,
     [reviewing],
   );
