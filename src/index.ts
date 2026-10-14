@@ -202,7 +202,7 @@ export default {
     if (path.startsWith("/api/")) return handleApi(req, env, path, url);
     if (path === "/health") return json({ ok: true });
     if (path === "/robots.txt") return new Response("User-agent: *\nAllow: /$\nAllow: /privacy\nDisallow: /\n", { headers: { "Content-Type": "text/plain" } });
-    if (path.startsWith("/assets/") && env.ASSETS) return env.ASSETS.fetch(req);
+    if ((path.startsWith("/assets/") || /^\/(favicon\.ico|favicon-(32|64)\.png|icon-192\.png|apple-touch-icon\.png)$/.test(path)) && env.ASSETS) return env.ASSETS.fetch(req);
     if (!readMethod) return new Response("405 不支持该方法", { status: 405 });
 
     const user: SessionInfo | null = await getUser(req, env).catch(() => null);
