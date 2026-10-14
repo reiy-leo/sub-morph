@@ -47,6 +47,17 @@ function pickUserAgent(sub: SubRow, clientUA: string | null): string {
   return DEFAULT_UA[sub.format] ?? "clash.meta";
 }
 
+/** 失败时说明是谁拒绝的：server 头、Cloudflare 拦截标记（cf-mitigated）、是否经过 Cloudflare（cf-ray）。不含 URL。 */
+function blockerHint(res: Response): string {
+  const parts: string[] = [];
+  const server = res.headers.get("server");
+  if (server) parts.push(`server: ${server.slice(0, 40)}`);
+  const mitigated = res.headers.get("cf-mitigated");
+  if (mitigated) parts.push(`cf-mitigated: ${mitigated.slice(0, 20)}（被 Cloudflare 安全规则拦截）`);
+  else if (res.headers.get("cf-ray") && /cloudflare/i.test(server ?? "")) parts.push("经过 Cloudflare");
+  return parts.length ? `（${parts.join("，")}）` : "";
+}
+
 async function fetchUpstream(env: Env, url: string, ua: string): Promise<{ text: string; headers: Record<string, string>; status: number }> {
   let res: Response;
   try {
@@ -56,7 +67,7 @@ async function fetchUpstream(env: Env, url: string, ua: string): Promise<{ text:
     if (/timed? ?out|abort/i.test(msg)) throw new UpstreamError("原订阅响应超时（超过 15 秒）", 504, null);
     throw new UpstreamError(`连接原订阅失败：${scrubUrls(msg)}`, 502, null);
   }
-  if (!res.ok) throw new UpstreamError(`原订阅返回 ${statusLabel(res.status)}`, 502, res.status);
+  if (!res.ok) throw new UpstreamError(`原订阅返回 ${statusLabel(res.status)}${blockerHint(res)}`, 502, res.status);
   const max = maxSubBytes(env);
   const len = Number(res.headers.get("content-length") ?? 0);
   if (len > max) throw new UpstreamError(`原订阅超过 ${max / 1024 / 1024} MB 上限`, 502, res.status);
