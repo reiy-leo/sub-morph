@@ -250,18 +250,20 @@ function UsersTab({ onPick }: { onPick: (u: UserView) => void }) {
   );
 }
 
-function SubsTab({ user, onClear, onLogs }: { user: UserView | null; onClear: () => void; onLogs: (s: AdminSub) => void }) {
+function SubsTab({ user, archived = false, onClear, onLogs }: { user: UserView | null; archived?: boolean; onClear: () => void; onLogs: (s: AdminSub) => void }) {
   const [subs, setSubs] = useState<AdminSub[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     setSubs(null);
-    api.admin.subs(user?.id).then((r) => setSubs(r.subs)).catch((e) => setError(errMsg(e)));
-  }, [user]);
+    api.admin.subs(user?.id, archived).then((r) => setSubs(r.subs)).catch((e) => setError(errMsg(e)));
+  }, [user, archived]);
   if (error) return <Banner variant="error" title="加载失败" description={error} />;
   return (
     <div className="grid gap-3">
       <div className="flex items-center gap-2">
-        <Text variant="secondary" size="sm">{user ? `只显示 ${user.email} 的订阅` : "全部用户的订阅（最多 500 条）"}。原订阅地址和输出地址对管理员也不可见，只显示脱敏域名。</Text>
+        <Text variant="secondary" size="sm">
+          {archived ? "已归档的订阅（只读，输出地址已停止服务）" : user ? `只显示 ${user.email} 的订阅` : "全部用户的订阅（最多 500 条）"}。原订阅地址和输出地址对管理员也不可见，只显示脱敏域名。
+        </Text>
         {user && <Button size="sm" variant="ghost" onClick={onClear}>显示全部</Button>}
       </div>
       {!subs ? (
@@ -274,7 +276,7 @@ function SubsTab({ user, onClear, onLogs }: { user: UserView | null; onClear: ()
                 <Table.Head>订阅</Table.Head>
                 <Table.Head>用户</Table.Head>
                 <Table.Head>格式 / 脚本</Table.Head>
-                <Table.Head>最近拉取</Table.Head>
+                <Table.Head>{archived ? "归档时间" : "最近拉取"}</Table.Head>
                 <Table.Head className="w-24" />
               </Table.Row>
             </Table.Header>
@@ -291,10 +293,14 @@ function SubsTab({ user, onClear, onLogs }: { user: UserView | null; onClear: ()
                     <div className="text-kumo-subtle">{s.scriptMode === "official" ? `官方 · ${s.officialName ?? "?"}` : MODE_LABEL[s.scriptMode]}</div>
                   </Table.Cell>
                   <Table.Cell className="whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <span className="text-kumo-subtle">{fmtRelative(s.last?.at)}</span>
-                      <LastBadge last={s.last} />
-                    </div>
+                    {archived ? (
+                      <span className="text-kumo-subtle" title={fmtTime(s.archivedAt ?? undefined)}>{fmtRelative(s.archivedAt ?? undefined)}</span>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <span className="text-kumo-subtle">{fmtRelative(s.last?.at)}</span>
+                        <LastBadge last={s.last} />
+                      </div>
+                    )}
                   </Table.Cell>
                   <Table.Cell><Button size="sm" variant="ghost" onClick={() => onLogs(s)}>记录</Button></Table.Cell>
                 </Table.Row>
@@ -480,12 +486,14 @@ export function AdminPage() {
                 { value: "users", label: "用户" },
                 { value: "subs", label: "订阅" },
                 { value: "logs", label: "拉取记录" },
+                { value: "archived", label: "归档" },
               ]}
             />
             {tab === "official" && <OfficialTab />}
             {tab === "submissions" && <SubmissionsTab onApproved={() => {}} />}
             {tab === "users" && <UsersTab onPick={(u) => { setPickedUser(u); setTab("subs"); }} />}
             {tab === "subs" && <SubsTab user={pickedUser} onClear={() => setPickedUser(null)} onLogs={(s) => { setPickedSub(s); setTab("logs"); }} />}
+            {tab === "archived" && <SubsTab user={null} archived onClear={() => {}} onLogs={(s) => { setPickedSub(s); setTab("logs"); }} />}
             {tab === "logs" && <LogsTab sub={pickedSub} onClear={() => setPickedSub(null)} />}
           </>
         )}

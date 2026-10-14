@@ -33,6 +33,7 @@ export interface SubRow {
   last_proxies: number | null;
   last_script_hash: string | null;
   script_changed_at: number | null;
+  archived_at: number | null;
 }
 
 export const encKey = (env: Env) => {
@@ -58,6 +59,7 @@ export async function toSubView(env: Env, r: SubRow & { official_name?: string |
     fallback: Boolean(r.fallback),
     createdAt: r.created_at,
     updatedAt: r.updated_at,
+    archivedAt: r.archived_at ?? null,
     last: r.last_at
       ? {
           at: r.last_at,
@@ -83,8 +85,13 @@ export async function toSubView(env: Env, r: SubRow & { official_name?: string |
 
 const SELECT = "SELECT s.*, o.name AS official_name FROM subscriptions s LEFT JOIN official_scripts o ON o.id = s.official_id";
 
-export async function listSubs(env: Env, userId: string | null) {
-  const q = userId ? env.DB.prepare(`${SELECT} WHERE s.user_id=?1 ORDER BY s.created_at DESC`).bind(userId) : env.DB.prepare(`${SELECT} ORDER BY s.created_at DESC LIMIT 500`);
+/** archived=false 只列未归档的；true 只列已归档的（按归档时间倒序）。 */
+export async function listSubs(env: Env, userId: string | null, archived = false) {
+  const a = archived ? "s.archived_at IS NOT NULL" : "s.archived_at IS NULL";
+  const order = archived ? "s.archived_at DESC" : "s.created_at DESC";
+  const q = userId
+    ? env.DB.prepare(`${SELECT} WHERE s.user_id=?1 AND ${a} ORDER BY ${order} LIMIT 500`).bind(userId)
+    : env.DB.prepare(`${SELECT} WHERE ${a} ORDER BY ${order} LIMIT 500`);
   return (await q.all<SubRow & { official_name: string | null }>()).results;
 }
 
@@ -131,7 +138,7 @@ async function validate(env: Env, b: SubInput, selfHost: string) {
 }
 
 export async function createSub(env: Env, userId: string, b: SubInput, selfHost: string): Promise<SubRow> {
-  const { n } = (await env.DB.prepare("SELECT COUNT(*) AS n FROM subscriptions WHERE user_id=?1").bind(userId).first<{ n: number }>()) ?? { n: 0 };
+  const { n } = (await env.DB.prepare("SELECT COUNT(*) AS n FROM subscriptions WHERE user_id=?1 AND archived_at IS NULL").bind(userId).first<{ n: number }>()) ?? { n: 0 };
   const max = limitsOf(env).maxSubs;
   if (n >= max) throw new InputError(`每个账号最多 ${max} 个订阅`, 429);
   const v = await validate(env, b, selfHost);
@@ -174,6 +181,13 @@ export async function rotateToken(env: Env, sub: SubRow): Promise<SubRow> {
     env.DB.prepare("INSERT OR IGNORE INTO revoked_tokens (token_hash, sub_id, revoked_at) VALUES (?1, ?2, ?3)").bind(sub.token_hash, sub.id, now),
     env.DB.prepare("UPDATE subscriptions SET token_hash=?2, token_enc=?3, updated_at=?4 WHERE id=?1").bind(sub.id, await sha256Hex(token), await encrypt(token, key), now),
   ]);
+  return (await getSub(env, sub.id))!;
+}
+
+/** 归档：此后只读，输出地址停止服务；删掉兜底缓存（节点内容），保留拉取记录供查看。不可撤销。 */
+export async function archiveSub(env: Env, sub: SubRow): Promise<SubRow> {
+  await env.DB.prepare("UPDATE subscriptions SET archived_at=?2 WHERE id=?1 AND archived_at IS NULL").bind(sub.id, Date.now()).run();
+  await env.CACHE.delete(`fb:${sub.id}`);
   return (await getSub(env, sub.id))!;
 }
 

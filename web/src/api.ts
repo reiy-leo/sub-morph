@@ -54,6 +54,7 @@ export const api = {
   create: (d: SubDraft) => request<{ sub: SubView }>("/api/subs", { method: "POST", body: body(d) }),
   update: (id: string, d: SubDraft) => request<{ sub: SubView }>(`/api/subs/${id}`, { method: "PUT", body: body(d) }),
   remove: (id: string) => request<{ ok: true }>(`/api/subs/${id}`, { method: "DELETE" }),
+  archive: (id: string) => request<{ sub: SubView }>(`/api/subs/${id}/archive`, { method: "POST" }),
   rotate: (id: string) => request<{ sub: SubView }>(`/api/subs/${id}/rotate`, { method: "POST" }),
   preview: (id: string) => request<{ result: PreviewResult; sub: SubView | null }>(`/api/subs/${id}/preview`, { method: "POST" }),
   logs: (id: string) => request<{ logs: FetchLogView[] }>(`/api/subs/${id}/logs`),
@@ -69,7 +70,13 @@ export const api = {
     approveSubmission: (id: string, d: OfficialDraft) => request<{ script: OfficialScriptView }>(`/api/admin/submissions/${id}/approve`, { method: "POST", body: body(d) }),
     rejectSubmission: (id: string, note: string) => request<{ ok: true }>(`/api/admin/submissions/${id}/reject`, { method: "POST", body: body({ note }) }),
     users: () => request<{ users: UserView[] }>("/api/admin/users"),
-    subs: (user?: string) => request<{ subs: AdminSub[] }>(`/api/admin/subs${user ? `?user=${encodeURIComponent(user)}` : ""}`),
+    subs: (user?: string, archived = false) => {
+      const q = new URLSearchParams();
+      if (user) q.set("user", user);
+      if (archived) q.set("archived", "1");
+      const qs = q.toString();
+      return request<{ subs: AdminSub[] }>(`/api/admin/subs${qs ? `?${qs}` : ""}`);
+    },
     logs: (p: { sub?: string; user?: string } = {}) => request<{ logs: FetchLogView[] }>(`/api/admin/logs?${new URLSearchParams(p as Record<string, string>)}`),
   },
 };

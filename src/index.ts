@@ -13,6 +13,7 @@
 //   PUT    /api/subs/:id                   编辑（输出地址不变）
 //   DELETE /api/subs/:id                   删除
 //   POST   /api/subs/:id/rotate            刷新输出地址
+//   POST   /api/subs/:id/archive           归档（不可撤销；之后只读，输出地址 410）
 //   POST   /api/subs/:id/preview           试运行（不影响客户端）
 //   GET    /api/subs/:id/logs              最近拉取记录
 //   POST   /api/match {url}                原订阅是否命中官方脚本
@@ -31,7 +32,7 @@ import { bumpDaily, bumpMinute, pruneUsage } from "./quota.ts";
 import { refreshOfficial, ScriptFetchError } from "./scripts.ts";
 import { statusLabel } from "./shared/status.ts";
 import type { LoginError, PageData, PageKind, SessionInfo, UserView } from "./shared/types.ts";
-import { createSub, deleteSub, findByToken, getSub, listLogs, listSubs, rotateToken, toSubView, updateSub, type SubInput } from "./subs.ts";
+import { archiveSub, createSub, deleteSub, findByToken, getSub, listLogs, listSubs, rotateToken, toSubView, updateSub, type SubInput } from "./subs.ts";
 import { isAdminEmail } from "./env.ts";
 
 const LOGIN_ERRORS = new Set<LoginError>(["unconfigured", "denied", "state", "token", "id_token", "unverified", "disabled"]);
@@ -87,6 +88,9 @@ async function handleApi(req: Request, env: Env, path: string, url: URL): Promis
       const action = r[2] ?? "";
       if (!sub || (!own && !(user.admin && action === "/logs" && m === "GET"))) return json({ error: "订阅不存在" }, 404);
       if (action === "" && m === "GET") return json({ sub: await toSubView(env, sub, { origin, owner: true }) });
+      // 归档后只读：除了查看和拉取记录，一律拒绝
+      if (sub.archived_at && !(m === "GET")) return json({ error: "订阅已归档，只读（409 冲突）" }, 409);
+      if (action === "/archive" && m === "POST") return json({ sub: await toSubView(env, await archiveSub(env, sub), { origin, owner: true }) });
       if (action === "" && m === "PUT") return json({ sub: await toSubView(env, await updateSub(env, sub, await body<SubInput>(req), selfHost), { origin, owner: true }) });
       if (action === "" && m === "DELETE") {
         await deleteSub(env, sub);
@@ -134,14 +138,14 @@ async function handleApi(req: Request, env: Env, path: string, url: URL): Promis
       if (path === "/api/admin/users" && m === "GET") {
         const rows = (
           await env.DB.prepare(
-            "SELECT u.*, (SELECT COUNT(*) FROM subscriptions s WHERE s.user_id=u.id) AS subs FROM users u ORDER BY u.last_login_at DESC LIMIT 500",
+            "SELECT u.*, (SELECT COUNT(*) FROM subscriptions s WHERE s.user_id=u.id AND s.archived_at IS NULL) AS subs FROM users u ORDER BY u.last_login_at DESC LIMIT 500",
           ).all<{ id: string; email: string; name: string | null; picture: string | null; created_at: number; last_login_at: number; subs: number }>()
         ).results;
         const users: UserView[] = rows.map((u) => ({ id: u.id, email: u.email, name: u.name, picture: u.picture, createdAt: u.created_at, lastLoginAt: u.last_login_at, subs: u.subs, admin: isAdminEmail(env, u.email) }));
         return json({ users });
       }
       if (path === "/api/admin/subs" && m === "GET") {
-        const rows = await listSubs(env, url.searchParams.get("user"));
+        const rows = await listSubs(env, url.searchParams.get("user"), url.searchParams.get("archived") === "1");
         const emails = new Map(
           (await env.DB.prepare("SELECT id, email FROM users").all<{ id: string; email: string }>()).results.map((u) => [u.id, u.email]),
         );
@@ -174,6 +178,7 @@ async function serveOutput(req: Request, env: Env, token: string): Promise<Respo
   if ((await bumpMinute(env, `ip:${ip}`)) > ipPerMinute(env)) return textResponse(429, "请求太频繁，请稍后再试", { "Retry-After": "60" });
   const { sub, revoked } = await findByToken(env, token);
   if (!sub) return revoked ? textResponse(410, "这个订阅地址已被刷新或删除，请在 Subscription Braces 里复制新的地址") : textResponse(404, "订阅地址不存在");
+  if (sub.archived_at) return textResponse(410, "这个订阅已归档，输出地址停止服务");
   const limit = limitsOf(env).dailyPulls;
   if ((await bumpDaily(env, `pull:${sub.id}`)) > limit) return textResponse(429, `这个订阅今天已被拉取超过 ${limit} 次，明天自动恢复`, { "Retry-After": "3600" });
   const res = await runPipeline(env, sub, { trigger: "client", clientUA: req.headers.get("User-Agent") });

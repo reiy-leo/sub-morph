@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Badge, Banner, Button, ClipboardText, Dialog, DropdownMenu, Empty, LayerCard, Loader, Text, useKumoToastManager } from "@cloudflare/kumo";
 import {
+  ArchiveIcon,
   ArrowClockwiseIcon,
   ArrowsLeftRightIcon,
   DotsThreeIcon,
@@ -80,7 +81,7 @@ function Landing({ loginError, loginReady }: { loginError: LoginError | null; lo
   );
 }
 
-function SubCard({ sub, onEdit, onPreview, onLogs, onRotate, onDelete }: { sub: SubView; onEdit: () => void; onPreview: () => void; onLogs: () => void; onRotate: () => void; onDelete: () => void }) {
+function SubCard({ sub, onEdit, onPreview, onLogs, onRotate, onArchive, onDelete }: { sub: SubView; onEdit: () => void; onPreview: () => void; onLogs: () => void; onRotate: () => void; onArchive: () => void; onDelete: () => void }) {
   const last = sub.last;
   return (
     <LayerCard className="grid gap-3 px-5 py-4">
@@ -104,6 +105,7 @@ function SubCard({ sub, onEdit, onPreview, onLogs, onRotate, onDelete }: { sub: 
             <DropdownMenu.Content align="end">
               <DropdownMenu.Item icon={ListBulletsIcon} onClick={onLogs}>拉取记录</DropdownMenu.Item>
               <DropdownMenu.Item icon={ArrowClockwiseIcon} onClick={onRotate}>刷新地址</DropdownMenu.Item>
+              <DropdownMenu.Item icon={ArchiveIcon} onClick={onArchive}>归档</DropdownMenu.Item>
               <DropdownMenu.Separator />
               <DropdownMenu.Item icon={TrashIcon} variant="danger" onClick={onDelete}>删除</DropdownMenu.Item>
             </DropdownMenu.Content>
@@ -143,7 +145,7 @@ function Dashboard({ limits }: { limits: Limits }) {
   const [editing, setEditing] = useState<{ open: boolean; sub: SubView | null }>({ open: false, sub: null });
   const [preview, setPreview] = useState<{ open: boolean; sub: SubView | null; result: PreviewResult | null; loading: boolean; error: string | null }>({ open: false, sub: null, result: null, loading: false, error: null });
   const [logs, setLogs] = useState<{ open: boolean; sub: SubView | null; logs: Awaited<ReturnType<typeof api.logs>>["logs"] | null }>({ open: false, sub: null, logs: null });
-  const [confirm, setConfirm] = useState<{ open: boolean; kind: "rotate" | "delete"; sub: SubView | null }>({ open: false, kind: "rotate", sub: null });
+  const [confirm, setConfirm] = useState<{ open: boolean; kind: "rotate" | "archive" | "delete"; sub: SubView | null }>({ open: false, kind: "rotate", sub: null });
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(() => {
@@ -181,6 +183,10 @@ function Dashboard({ limits }: { limits: Limits }) {
       if (kind === "rotate") {
         replace((await api.rotate(sub.id)).sub);
         toast.add({ title: "已生成新地址", description: "旧地址已失效（410 已失效），记得在客户端里换成新地址。", variant: "success" });
+      } else if (kind === "archive") {
+        await api.archive(sub.id);
+        setSubs((xs) => xs?.filter((x) => x.id !== sub.id) ?? null);
+        toast.add({ title: "订阅已归档", description: "输出地址已停止服务（410 已失效）。", variant: "success" });
       } else {
         await api.remove(sub.id);
         setSubs((xs) => xs?.filter((x) => x.id !== sub.id) ?? null);
@@ -232,6 +238,7 @@ function Dashboard({ limits }: { limits: Limits }) {
           onPreview={() => runPreview(s)}
           onLogs={() => openLogs(s)}
           onRotate={() => setConfirm({ open: true, kind: "rotate", sub: s })}
+          onArchive={() => setConfirm({ open: true, kind: "archive", sub: s })}
           onDelete={() => setConfirm({ open: true, kind: "delete", sub: s })}
         />
       ))}
@@ -265,17 +272,19 @@ function Dashboard({ limits }: { limits: Limits }) {
         <Dialog size="base" className="px-6 py-5">
           <div className="grid gap-5">
             <div className="grid gap-1">
-              <Dialog.Title className="text-base font-semibold">{confirm.kind === "rotate" ? "刷新输出地址？" : `删除「${confirm.sub?.name}」？`}</Dialog.Title>
+              <Dialog.Title className="text-base font-semibold">{confirm.kind === "rotate" ? "刷新输出地址？" : confirm.kind === "archive" ? `归档「${confirm.sub?.name}」？` : `删除「${confirm.sub?.name}」？`}</Dialog.Title>
               <Dialog.Description className="text-kumo-subtle">
                 {confirm.kind === "rotate"
                   ? "会生成一个新地址，旧地址立即失效（客户端再拉取会收到 410 已失效）。适合地址泄露时使用。"
-                  : "订阅、拉取记录和兜底缓存都会删除，输出地址立即失效。"}
+                  : confirm.kind === "archive"
+                    ? "归档后订阅变成只读：不能再编辑、试运行、刷新地址或删除，也不能取消归档。输出地址立即停止服务（客户端会收到 410 已失效），兜底缓存会清除。"
+                    : "订阅、拉取记录和兜底缓存都会删除，输出地址立即失效。"}
               </Dialog.Description>
             </div>
             <div className="flex justify-end gap-2">
               <Dialog.Close render={(p) => <Button {...p} variant="secondary">取消</Button>} />
               <Button variant={confirm.kind === "delete" ? "destructive" : "primary"} loading={busy} onClick={doConfirm}>
-                {confirm.kind === "rotate" ? "刷新地址" : "删除"}
+                {confirm.kind === "rotate" ? "刷新地址" : confirm.kind === "archive" ? "归档" : "删除"}
               </Button>
             </div>
           </div>

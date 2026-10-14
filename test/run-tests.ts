@@ -11,7 +11,7 @@ import { collapse, diffRows } from "../web/src/lib/diffRows.ts";
 
 // ---- 假 D1 ----
 const sqlite = new DatabaseSync(":memory:");
-for (const f of ["0001_init.sql", "0002_submissions.sql"]) sqlite.exec(readFileSync(new URL(`../migrations/${f}`, import.meta.url), "utf8"));
+for (const f of ["0001_init.sql", "0002_submissions.sql", "0003_archive.sql"]) sqlite.exec(readFileSync(new URL(`../migrations/${f}`, import.meta.url), "utf8"));
 class Stmt {
   args: unknown[] = [];
   sql: string;
@@ -233,6 +233,24 @@ const users = await api<{ users: { email: string; admin: boolean }[] }>("/api/ad
 assert.equal(users.data.users[0]!.admin, true);
 const alogs = await api<{ logs: unknown[] }>("/api/admin/logs");
 assert.ok(alogs.data.logs.length >= 8);
+
+// ---- 归档 ----
+{
+  const ar = await api<{ sub: { archivedAt: number | null } }>(`/api/subs/${sub.id}/archive`, "POST");
+  assert.equal(ar.status, 200);
+  assert.ok(ar.data.sub.archivedAt, "归档时间");
+  assert.equal((await pull(sub.outputUrl)).status, 410, "归档后输出地址 410");
+  for (const [path, m] of [[`/api/subs/${sub.id}`, "PUT"], [`/api/subs/${sub.id}`, "DELETE"], [`/api/subs/${sub.id}/rotate`, "POST"], [`/api/subs/${sub.id}/preview`, "POST"], [`/api/subs/${sub.id}/archive`, "POST"]] as const) {
+    assert.equal((await api(path, m, m === "PUT" ? { name: "x" } : undefined)).status, 409, `归档后只读：${m} ${path}`);
+  }
+  assert.equal((await api(`/api/subs/${sub.id}/logs`)).status, 200, "归档后仍可看记录");
+  const mine = await api<{ subs: { id: string }[] }>("/api/subs");
+  assert.ok(!mine.data.subs.some((x) => x.id === sub.id), "我的订阅不显示已归档");
+  const live = await api<{ subs: { id: string }[] }>("/api/admin/subs");
+  assert.ok(!live.data.subs.some((x) => x.id === sub.id), "后台订阅不含已归档");
+  const arch = await api<{ subs: { id: string }[] }>("/api/admin/subs?archived=1");
+  assert.deepEqual(arch.data.subs.map((x) => x.id), [sub.id], "后台归档标签");
+}
 
 // ---- 删除 ----
 assert.equal((await api(`/api/subs/${q.id}`, "DELETE")).status, 200);

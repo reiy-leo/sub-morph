@@ -44,6 +44,8 @@ export interface SubView {
   outputUrl?: string;
   createdAt: number;
   updatedAt: number;
+  /** 归档时间；归档后只读、输出地址停止服务。 */
+  archivedAt: number | null;
   last: LastFetch | null;
   /** 该订阅最近一次「提交为官方脚本」的投稿（只给本人）。 */
   submission?: SubmissionView | null;
