@@ -130,7 +130,8 @@ assert.equal(res.headers.get("subscription-userinfo"), "upload=1; download=2; to
 assert.equal(res.headers.get("profile-update-interval"), "24");
 let text = await res.text();
 assert.match(text, /HK 01/);
-assert.doesNotMatch(text, /name: JP 01/, "脚本生效");
+assert.doesNotMatch(text, /name: "JP 01"/, "脚本生效");
+assert.match(text, /^  - name: "HK 01"\n    type: "ss"\n    server: "1\.2\.3\.4"\n    port: 443$/m, "字符串双引号、键和数字不加引号");
 assert.equal(seenUA.at(-1), "FlClash/v0.8 clash-verge Platform/android", "透传客户端 UA");
 
 // 预览
