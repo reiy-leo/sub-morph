@@ -46,9 +46,21 @@ export interface SubView {
   updatedAt: number;
   /** 归档时间；归档后只读、输出地址停止服务。 */
   archivedAt: number | null;
+  /** 推送模式：由用户设备（家庭网络）定时推送原订阅内容，服务端不再直连原订阅。 */
+  push: PushInfo;
   last: LastFetch | null;
   /** 该订阅最近一次「提交为官方脚本」的投稿（只给本人）。 */
   submission?: SubmissionView | null;
+}
+
+export interface PushInfo {
+  enabled: boolean;
+  /** 推送地址（只有本人能看到）。 */
+  url?: string;
+  /** 最近一次收到推送的时间。 */
+  pushedAt: number | null;
+  /** 最近一次推送时，设备拉原订阅得到的状态码。 */
+  lastStatus: number | null;
 }
 
 export type SubmissionStatus = "pending" | "approved" | "rejected";

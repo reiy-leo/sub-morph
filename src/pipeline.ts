@@ -9,6 +9,7 @@ import { statusLabel } from "./shared/status.ts";
 import type { DetectedFormat, FetchTrigger, PreviewResult, Served } from "./shared/types.ts";
 import { encKey, type SubRow } from "./subs.ts";
 import { scrubUrls } from "./urls.ts";
+import { readPushed } from "./push.ts";
 
 /** 透传给客户端的原订阅响应头（流量 / 到期 / 更新间隔 / 文件名）。 */
 const PASS_HEADERS = ["subscription-userinfo", "profile-update-interval", "profile-web-page-url", "content-disposition", "support-url"];
@@ -82,6 +83,13 @@ async function fetchUpstream(env: Env, url: string, ua: string): Promise<{ text:
   return { text, headers, status: res.status };
 }
 
+/** 推送模式：用设备最近一次推送的原订阅内容代替直连。 */
+async function fromPushed(env: Env, sub: SubRow): Promise<{ text: string; headers: Record<string, string>; status: number }> {
+  const p = await readPushed(env, sub);
+  if (!p) throw new UpstreamError("推送模式：还没收到设备推送的原订阅（检查设备上的定时任务是否在运行）", 503, sub.push_status ?? null);
+  return { text: p.text, headers: { ...p.headers, "x-sub-morph-pushed-at": new Date(p.at).toISOString() }, status: p.status };
+}
+
 export async function runPipeline(env: Env, sub: SubRow, opts: { trigger: FetchTrigger; clientUA: string | null }): Promise<PipelineResult> {
   const started = Date.now();
   const limits = limitsOf(env);
@@ -95,8 +103,7 @@ export async function runPipeline(env: Env, sub: SubRow, opts: { trigger: FetchT
   let upstreamBytes: number | null = null;
 
   try {
-    const url = await decrypt(sub.source_enc, encKey(env));
-    const up = await fetchUpstream(env, url, pickUserAgent(sub, opts.clientUA));
+    const up = sub.push_token_hash ? await fromPushed(env, sub) : await fetchUpstream(env, await decrypt(sub.source_enc, encKey(env)), pickUserAgent(sub, opts.clientUA));
     upstreamStatus = up.status;
     upstreamBytes = up.text.length;
     if (opts.trigger !== "client") upstreamText = up.text.slice(0, PREVIEW_MAX);

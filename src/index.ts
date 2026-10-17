@@ -2,6 +2,7 @@
 //
 // 输出（公开，靠不可猜的密钥）：
 //   GET  /s/:token                 成品订阅（客户端导入这个地址）；刷新地址后旧地址返回 410 已失效
+//   PUT  /p/:token                 推送模式：用户设备推送原订阅内容（见 push.ts）
 // 页面：/（首页 / 我的订阅）、/admin（管理后台）、/privacy（隐私与免责）、/licenses（第三方许可证）
 // 登录：GET /auth/login | /auth/callback, POST /auth/logout（Google OAuth，任意 Google 账号）
 // API（需登录）：
@@ -13,6 +14,7 @@
 //   PUT    /api/subs/:id                   编辑（输出地址不变）
 //   DELETE /api/subs/:id                   删除
 //   POST   /api/subs/:id/rotate            刷新输出地址
+//   POST   /api/subs/:id/push {enabled}    开启（或重置）/ 关闭推送模式
 //   POST   /api/subs/:id/archive           归档（不可撤销；之后只读，输出地址 410）
 //   POST   /api/subs/:id/preview           试运行（不影响客户端）
 //   GET    /api/subs/:id/logs              最近拉取记录
@@ -31,7 +33,8 @@ import { bumpDaily, bumpMinute, pruneUsage } from "./quota.ts";
 import { refreshOfficial, ScriptFetchError } from "./scripts.ts";
 import { statusLabel } from "./shared/status.ts";
 import type { LoginError, PageData, PageKind, SessionInfo, UserView } from "./shared/types.ts";
-import { archiveSub, createSub, deleteSub, findByToken, getSub, listLogs, listSubs, rotateToken, toSubView, updateSub, type SubInput } from "./subs.ts";
+import { receivePush } from "./push.ts";
+import { archiveSub, setPush, createSub, deleteSub, findByToken, getSub, listLogs, listSubs, rotateToken, toSubView, updateSub, type SubInput } from "./subs.ts";
 import { isAdminEmail } from "./env.ts";
 
 const LOGIN_ERRORS = new Set<LoginError>(["unconfigured", "denied", "state", "token", "id_token", "unverified", "disabled"]);
@@ -90,6 +93,10 @@ async function handleApi(req: Request, env: Env, path: string, url: URL): Promis
       if (action === "" && m === "DELETE") {
         await deleteSub(env, sub);
         return json({ ok: true });
+      }
+      if (action === "/push" && m === "POST") {
+        const enabled = (await body<{ enabled: boolean }>(req)).enabled === true;
+        return json({ sub: await toSubView(env, await setPush(env, sub, enabled), { origin, owner: true }) });
       }
       if (action === "/rotate" && m === "POST") return json({ sub: await toSubView(env, await rotateToken(env, sub), { origin, owner: true }) });
       if (action === "/preview" && m === "POST") {
@@ -196,6 +203,7 @@ export default {
       if (!readMethod) return textResponse(405, "只支持 GET");
       return serveOutput(req, env, r[1]!);
     }
+    if ((r = /^\/p\/([A-Za-z0-9_-]+)$/.exec(path))) return receivePush(req, env, r[1]!);
     if (path === "/auth/login" && req.method === "GET") return login(req, env);
     if (path === "/auth/callback" && req.method === "GET") return callback(req, env);
     if (path === "/auth/logout" && req.method === "POST") return logout(req);

@@ -55,6 +55,7 @@ export const api = {
   update: (id: string, d: SubDraft) => request<{ sub: SubView }>(`/api/subs/${id}`, { method: "PUT", body: body(d) }),
   remove: (id: string) => request<{ ok: true }>(`/api/subs/${id}`, { method: "DELETE" }),
   archive: (id: string) => request<{ sub: SubView }>(`/api/subs/${id}/archive`, { method: "POST" }),
+  push: (id: string, enabled: boolean) => request<{ sub: SubView }>(`/api/subs/${id}/push`, { method: "POST", body: body({ enabled }) }),
   rotate: (id: string) => request<{ sub: SubView }>(`/api/subs/${id}/rotate`, { method: "POST" }),
   preview: (id: string) => request<{ result: PreviewResult; sub: SubView | null }>(`/api/subs/${id}/preview`, { method: "POST" }),
   logs: (id: string) => request<{ logs: FetchLogView[] }>(`/api/subs/${id}/logs`),

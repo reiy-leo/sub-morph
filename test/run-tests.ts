@@ -11,7 +11,7 @@ import { collapse, diffRows } from "../web/src/lib/diffRows.ts";
 
 // ---- 假 D1 ----
 const sqlite = new DatabaseSync(":memory:");
-for (const f of ["0001_init.sql", "0002_submissions.sql", "0003_archive.sql"]) sqlite.exec(readFileSync(new URL(`../migrations/${f}`, import.meta.url), "utf8"));
+for (const f of ["0001_init.sql", "0002_submissions.sql", "0003_archive.sql", "0004_push.sql"]) sqlite.exec(readFileSync(new URL(`../migrations/${f}`, import.meta.url), "utf8"));
 class Stmt {
   args: unknown[] = [];
   sql: string;
@@ -222,6 +222,40 @@ const cur2 = (await api<{ sub: Record<string, unknown> }>(`/api/subs/${sub.id}`)
 const ed = await api<{ sub: { outputUrl: string; name: string } }>(`/api/subs/${sub.id}`, "PUT", { ...cur2, name: "改名了" });
 assert.equal(ed.data.sub.outputUrl, rot.data.sub.outputUrl);
 assert.equal(ed.data.sub.name, "改名了");
+
+// ---- 推送模式 ----
+{
+  const curB = (await api<{ sub: Record<string, unknown> }>(`/api/subs/${bad.id}`)).data.sub;
+  assert.equal((await api(`/api/subs/${bad.id}`, "PUT", { ...curB, scriptMode: "none" })).status, 200);
+  const on = await api<{ sub: { push: { enabled: boolean; url: string; pushedAt: number | null } } }>(`/api/subs/${bad.id}/push`, "POST", { enabled: true });
+  assert.equal(on.data.sub.push.enabled, true);
+  assert.match(on.data.sub.push.url, /^http:\/\/localhost:8787\/p\/[A-Za-z0-9_-]{32}$/);
+  const before = seenUA.length;
+  let pr = await pull(bad.outputUrl);
+  assert.equal(pr.status, 503, "还没推送 → 503");
+  assert.equal(seenUA.length, before, "推送模式不直连原订阅");
+  const push = (body: string, h: Record<string, string> = {}) => worker.fetch(new Request(on.data.sub.push.url, { method: "PUT", body, headers: h }) as never, admin);
+  assert.equal((await push("<html>blocked</html>")).status, 422, "拦截页面不收");
+  const hdr = Buffer.from("Subscription-Userinfo: upload=5; download=6; total=100\r\nX-Other: no\r\n").toString("base64");
+  const ok = await push(CLASH, { "X-Upstream-Status": "200", "X-Upstream-Headers": hdr });
+  assert.equal(ok.status, 200);
+  assert.match(await ok.text(), /已收到 2 个节点/);
+  assert.equal((await push("", { "X-Upstream-Status": "403" })).status, 200, "设备拉取失败只记录");
+  pr = await pull(bad.outputUrl);
+  assert.equal(pr.status, 200);
+  assert.equal(pr.headers.get("subscription-userinfo"), "upload=5; download=6; total=100", "透传推送的流量头");
+  assert.match(await pr.text(), /JP 01/, "仍用上次成功推送的内容");
+  assert.equal(seenUA.length, before);
+  const st = (await api<{ sub: { push: { pushedAt: number | null; lastStatus: number } } }>(`/api/subs/${bad.id}`)).data.sub.push;
+  assert.ok(st.pushedAt);
+  assert.equal(st.lastStatus, 403);
+  assert.equal((await worker.fetch(new Request(L + "/p/" + "b".repeat(32), { method: "PUT", body: CLASH }) as never, admin)).status, 404);
+  const off = await api<{ sub: { push: { enabled: boolean } } }>(`/api/subs/${bad.id}/push`, "POST", { enabled: false });
+  assert.equal(off.data.sub.push.enabled, false);
+  assert.equal(kv.has(`push:${bad.id}`), false, "关闭推送清掉内容");
+  assert.equal((await push(CLASH)).status, 404, "关闭后推送地址失效");
+  assert.equal((await pull(bad.outputUrl)).status, 200, "关闭后恢复直连");
+}
 
 // ---- 管理员视图：脱敏 ----
 const as = await api<{ subs: { url?: string; outputUrl?: string; host: string; userEmail: string }[] }>("/api/admin/subs");

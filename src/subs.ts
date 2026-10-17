@@ -34,6 +34,10 @@ export interface SubRow {
   last_script_hash: string | null;
   script_changed_at: number | null;
   archived_at: number | null;
+  push_token_hash: string | null;
+  push_token_enc: string | null;
+  pushed_at: number | null;
+  push_status: number | null;
 }
 
 export const encKey = (env: Env) => {
@@ -60,6 +64,7 @@ export async function toSubView(env: Env, r: SubRow & { official_name?: string |
     createdAt: r.created_at,
     updatedAt: r.updated_at,
     archivedAt: r.archived_at ?? null,
+    push: r.push_token_hash ? { enabled: true, pushedAt: r.pushed_at ?? null, lastStatus: r.push_status ?? null } : { enabled: false, pushedAt: null, lastStatus: null },
     last: r.last_at
       ? {
           at: r.last_at,
@@ -77,6 +82,7 @@ export async function toSubView(env: Env, r: SubRow & { official_name?: string |
     const key = encKey(env);
     view.url = await decrypt(r.source_enc, key);
     view.outputUrl = outputUrl(opts.origin, await decrypt(r.token_enc, key));
+    if (r.push_token_enc) view.push!.url = `${opts.origin}/p/${await decrypt(r.push_token_enc, key)}`;
     const sub = await env.DB.prepare("SELECT * FROM script_submissions WHERE sub_id=?1 ORDER BY created_at DESC LIMIT 1").bind(r.id).first<SubmissionRow>();
     view.submission = sub ? submissionView(sub, false) : null;
   }
@@ -188,7 +194,25 @@ export async function rotateToken(env: Env, sub: SubRow): Promise<SubRow> {
 export async function archiveSub(env: Env, sub: SubRow): Promise<SubRow> {
   await env.DB.prepare("UPDATE subscriptions SET archived_at=?2 WHERE id=?1 AND archived_at IS NULL").bind(sub.id, Date.now()).run();
   await env.CACHE.delete(`fb:${sub.id}`);
+  await env.CACHE.delete(`push:${sub.id}`);
   return (await getSub(env, sub.id))!;
+}
+
+/** 开启 / 重置推送模式（生成新的推送密钥，旧推送地址立即失效）；关闭时清掉推送内容。 */
+export async function setPush(env: Env, sub: SubRow, enabled: boolean): Promise<SubRow> {
+  if (!enabled) {
+    await env.DB.prepare("UPDATE subscriptions SET push_token_hash=NULL, push_token_enc=NULL, pushed_at=NULL, push_status=NULL WHERE id=?1").bind(sub.id).run();
+    await env.CACHE.delete(`push:${sub.id}`);
+  } else {
+    const token = randomSecret();
+    await env.DB.prepare("UPDATE subscriptions SET push_token_hash=?2, push_token_enc=?3 WHERE id=?1").bind(sub.id, await sha256Hex(token), await encrypt(token, encKey(env))).run();
+  }
+  return (await getSub(env, sub.id))!;
+}
+
+export async function findByPushToken(env: Env, token: string): Promise<SubRow | null> {
+  if (!/^[A-Za-z0-9_-]{20,64}$/.test(token)) return null;
+  return env.DB.prepare("SELECT * FROM subscriptions WHERE push_token_hash=?1").bind(await sha256Hex(token)).first<SubRow>();
 }
 
 export async function deleteSub(env: Env, sub: SubRow) {
@@ -198,6 +222,7 @@ export async function deleteSub(env: Env, sub: SubRow) {
     env.DB.prepare("DELETE FROM subscriptions WHERE id=?1").bind(sub.id),
   ]);
   await env.CACHE.delete(`fb:${sub.id}`);
+  await env.CACHE.delete(`push:${sub.id}`);
 }
 
 export async function findByToken(env: Env, token: string): Promise<{ sub: SubRow | null; revoked: boolean }> {

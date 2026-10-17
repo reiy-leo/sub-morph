@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { UA_PRESET_GROUPS } from "../uaPresets";
 import { CodeEditor } from "./CodeLines.tsx";
+import { PushSection } from "./PushSection.tsx";
 import { Badge, Banner, Button, Dialog, Input, Select, Switch, Tabs, Text, useKumoToastManager } from "@cloudflare/kumo";
 import type { Limits, OfficialMatch, SubView } from "../../../src/shared/types.ts";
 import { api, type SubDraft } from "../api.ts";
@@ -19,7 +20,7 @@ function main(config, ctx) {
 }
 `;
 
-export function SubEditor({ open, sub, limits, onClose, onSaved }: { open: boolean; sub: SubView | null; limits: Limits; onClose: () => void; onSaved: (s: SubView) => void }) {
+export function SubEditor({ open, sub, limits, onClose, onSaved, onChange }: { open: boolean; sub: SubView | null; limits: Limits; onClose: () => void; onSaved: (s: SubView) => void; onChange?: (s: SubView) => void }) {
   const toast = useKumoToastManager();
   const [d, setD] = useState<SubDraft>(EMPTY);
   const [officials, setOfficials] = useState<OfficialMatch[] | null>(null);
@@ -36,7 +37,9 @@ export function SubEditor({ open, sub, limits, onClose, onSaved }: { open: boole
         ? { name: sub.name, url: sub.url ?? "", format: sub.format, userAgent: sub.userAgent, scriptMode: sub.scriptMode, officialId: sub.officialId, scriptUrl: sub.scriptUrl, scriptContent: sub.scriptContent, fallback: sub.fallback, submitOfficial: false }
         : EMPTY,
     );
-  }, [open, sub]);
+    // 只在打开或换了订阅时重置草稿；推送开关等就地更新不覆盖正在编辑的内容
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, sub?.id]);
 
   // 打开弹窗或改了原订阅地址：清空上次获取的结果，需要重新点「获取」
   useEffect(() => {
@@ -176,6 +179,12 @@ export function SubEditor({ open, sub, limits, onClose, onSaved }: { open: boole
                 </div>
               )}
             </div>
+
+            {sub ? (
+              <PushSection sub={sub} onChange={(s) => onChange?.(s)} />
+            ) : (
+              <Text variant="secondary" size="sm">原订阅拦截服务器机房 IP 时，保存后可在编辑里开启「推送模式」。</Text>
+            )}
 
             <details className="grid gap-3">
               <summary className="cursor-pointer text-sm text-kumo-subtle">高级设置</summary>

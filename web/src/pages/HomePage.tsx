@@ -252,6 +252,10 @@ function Dashboard({ limits }: { limits: Limits }) {
           replace(s);
           setEditing({ open: false, sub: null });
         }}
+        onChange={(s) => {
+          replace(s);
+          setEditing((e) => ({ ...e, sub: s }));
+        }}
       />
       <PreviewDialog open={preview.open} name={preview.sub?.name ?? ""} result={preview.result} loading={preview.loading} error={preview.error} onClose={() => setPreview((p) => ({ ...p, open: false }))} />
 

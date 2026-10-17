@@ -35,6 +35,7 @@ src/
   sandbox.ts             QuickJS 沙箱（main(config, ctx)）
   scripts.ts             解析脚本来源（内联 / URL 缓存 / 官方脚本），记录 hash
   formats/               clash.ts、qx.ts、index.ts（识别 + 统一接口）
+  push.ts                推送模式：PUT /p/:token 接收设备推送的原订阅（KV push:<id>）
   subs.ts                订阅 CRUD、输出密钥（刷新 / 吊销）、日志查询
   official.ts            官方脚本 CRUD + 正则匹配
   auth.ts / session.ts   Google OAuth 2.0 + users 表 upsert，HMAC 签名 cookie
