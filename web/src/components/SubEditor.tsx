@@ -98,6 +98,11 @@ export function SubEditor({ open, sub, limits, onClose, onSaved, onChange }: { o
 
           <div className="grid gap-4">
             <Input label="原订阅地址" placeholder="https://机场域名/api/v1/client/subscribe?token=…" value={d.url} onChange={(e) => set("url", e.target.value)} />
+            {sub ? (
+              <PushSection sub={sub} onChange={(s) => onChange?.(s)} />
+            ) : (
+              <Text variant="secondary" size="sm">原订阅拦截服务器机房 IP 时，保存后可在编辑里开启「推送模式」。</Text>
+            )}
             <div className="grid gap-4 sm:grid-cols-2">
               <Input label="名称" placeholder="不填则用域名" value={d.name} onChange={(e) => set("name", e.target.value)} />
               <Select label="订阅格式" value={d.format} onValueChange={(v) => set("format", (v as SubDraft["format"]) ?? "auto")} items={FORMAT_LABEL}>
@@ -179,12 +184,6 @@ export function SubEditor({ open, sub, limits, onClose, onSaved, onChange }: { o
                 </div>
               )}
             </div>
-
-            {sub ? (
-              <PushSection sub={sub} onChange={(s) => onChange?.(s)} />
-            ) : (
-              <Text variant="secondary" size="sm">原订阅拦截服务器机房 IP 时，保存后可在编辑里开启「推送模式」。</Text>
-            )}
 
             <details className="grid gap-3">
               <summary className="cursor-pointer text-sm text-kumo-subtle">高级设置</summary>
